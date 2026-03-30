@@ -113,6 +113,16 @@ npm run etl
 ETL docs:
 - `docs/etl.md`
 
+## Admin APIs
+- `GET /admin/users`, `POST /admin/users`, `PUT /admin/users`
+- `POST /admin/users/:id/freeze`
+- `POST /admin/privacy_requests/:id/approve`
+- `POST /admin/exports` and `GET /admin/exports/download/:token`
+
+Role model:
+- `admin`: full access
+- `faculty`/`mentor`: scoped admin console access (privacy review + scoped exports)
+
 ## Notes
 - No secrets are committed; use `.env` locally.
 - `.env.example` documents required environment variables.
