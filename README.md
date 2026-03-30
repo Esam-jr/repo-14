@@ -53,6 +53,13 @@ curl http://localhost:3000
 
 The script installs dependencies, ensures the database service is up, runs unit/API tests, and prints a final summary.
 
+Frontend tests:
+
+```bash
+npm run test:frontend:component
+npm run test:frontend:e2e
+```
+
 ## Seed / migrations
 Migrations run idempotently whenever `server` starts.
 

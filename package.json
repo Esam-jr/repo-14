@@ -15,7 +15,9 @@
     "benchmark:search": "docker-compose run --rm server npm run benchmark:search",
     "test": "jest --runInBand",
     "test:unit": "jest unit_tests --runInBand",
-    "test:api": "jest API_tests --runInBand"
+    "test:api": "jest API_tests --runInBand",
+    "test:frontend:component": "npm --workspace client run test:component",
+    "test:frontend:e2e": "npm --workspace client run test:e2e"
   },
   "devDependencies": {
     "jest": "^29.7.0",
