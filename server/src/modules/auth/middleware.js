@@ -42,6 +42,15 @@ function hasRequiredScopes(userScopes = {}, requiredScopes = {}) {
   return true;
 }
 
+function decodeAuth(token) {
+  const payload = verifyAccessToken(token);
+  return {
+    userId: Number(payload.sub),
+    role: payload.role,
+    scopes: payload.scopes || {}
+  };
+}
+
 function requireAuth(req, _res, next) {
   try {
     const token = extractBearerToken(req);
@@ -49,15 +58,24 @@ function requireAuth(req, _res, next) {
       throw new AppError(401, "unauthorized", "Authentication token is required.");
     }
 
-    const payload = verifyAccessToken(token);
-    req.auth = {
-      userId: Number(payload.sub),
-      role: payload.role,
-      scopes: payload.scopes || {}
-    };
+    req.auth = decodeAuth(token);
     next();
   } catch (_error) {
     next(new AppError(401, "unauthorized", "Invalid or expired token."));
+  }
+}
+
+function requireOptionalAuth(req, _res, next) {
+  try {
+    const token = extractBearerToken(req);
+    if (!token) {
+      return next();
+    }
+
+    req.auth = decodeAuth(token);
+    return next();
+  } catch (_error) {
+    return next();
   }
 }
 
@@ -97,6 +115,7 @@ function requireRole(roleOrArray, requiredScopes = null) {
 
 module.exports = {
   requireAuth,
+  requireOptionalAuth,
   requireRole,
   hasRequiredScopes
 };

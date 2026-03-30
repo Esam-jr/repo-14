@@ -11,6 +11,7 @@ let fixtures;
 async function resetDatabase() {
   await pool.query(`
     TRUNCATE TABLE
+      privacy_view_tokens,
       refresh_tokens,
       question_tags,
       messages,
@@ -152,3 +153,4 @@ describe("auth API", () => {
     expect(denied.status).toBe(403);
   });
 });
+

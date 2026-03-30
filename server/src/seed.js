@@ -4,8 +4,19 @@ async function upsertUser(pool, input) {
   const passwordHash = await hashPassword(input.password);
 
   const result = await pool.query(
-    `INSERT INTO users (email, password_hash, role, profile, scopes, is_public, visibility)
-     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7)
+    `INSERT INTO users (
+      email,
+      password_hash,
+      role,
+      profile,
+      scopes,
+      is_public,
+      visibility,
+      phone_visibility,
+      email_visibility,
+      employer_visibility
+    )
+     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7, $8, $9, $10)
      ON CONFLICT (email)
      DO UPDATE SET
        password_hash = EXCLUDED.password_hash,
@@ -14,6 +25,9 @@ async function upsertUser(pool, input) {
        scopes = EXCLUDED.scopes,
        is_public = EXCLUDED.is_public,
        visibility = EXCLUDED.visibility,
+       phone_visibility = EXCLUDED.phone_visibility,
+       email_visibility = EXCLUDED.email_visibility,
+       employer_visibility = EXCLUDED.employer_visibility,
        updated_at = NOW()
      RETURNING id, email`,
     [
@@ -23,7 +37,10 @@ async function upsertUser(pool, input) {
       JSON.stringify(input.profile || {}),
       JSON.stringify(input.scopes || {}),
       !!input.isPublic,
-      input.visibility || "private"
+      input.visibility || "private",
+      input.phoneVisibility || "private",
+      input.emailVisibility || "private",
+      input.employerVisibility || "private"
     ]
   );
 
@@ -108,6 +125,33 @@ async function seedDatabase(pool) {
     visibility: "public"
   });
 
+  const advisor = await upsertUser(pool, {
+    email: "advisor.fixture@cohortbridge.dev",
+    password: "SeedAdvisor123!",
+    role: "faculty",
+    profile: { display_name: "Fixture Advisor" },
+    scopes: { school: ["Engineering"], cohort: ["2026"] },
+    isPublic: true,
+    visibility: "school"
+  });
+
+  const alumni = await upsertUser(pool, {
+    email: "alumni.fixture@cohortbridge.dev",
+    password: "SeedAlumni123!",
+    role: "alumni",
+    profile: {
+      display_name: "Fixture Alumni",
+      phone: "(555) 123-4434",
+      employer: "CohortBridge Labs"
+    },
+    scopes: { school: ["Engineering"], major: ["Computer Science"], cohort: ["2026"] },
+    isPublic: false,
+    visibility: "cohort",
+    phoneVisibility: "private",
+    emailVisibility: "private",
+    employerVisibility: "advisor_mentor"
+  });
+
   const student = await upsertUser(pool, {
     email: "student.fixture@cohortbridge.dev",
     password: "SeedStudent123!",
@@ -190,12 +234,12 @@ async function seedDatabase(pool) {
   );
 
   await pool.query(
-    `INSERT INTO privacy_requests (user_id, request_type, status, details)
-     SELECT $1, $2, $3, $4::jsonb
+    `INSERT INTO privacy_requests (user_id, target_user_id, request_type, status, reason, fields_requested, details, expires_at)
+     SELECT $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, NOW() + INTERVAL '14 days'
      WHERE NOT EXISTS (
-       SELECT 1 FROM privacy_requests WHERE user_id = $1 AND request_type = $2 AND status = $3
+       SELECT 1 FROM privacy_requests WHERE user_id = $1 AND target_user_id = $2 AND request_type = $3
      )`,
-    [student.id, "data_export", "pending", JSON.stringify({ fixture: true })]
+    [student.id, alumni.id, "profile_access", "pending", "Need to verify alumni contact for mentorship.", JSON.stringify(["email"]), JSON.stringify({ fixture: true })]
   );
 
   await pool.query(
@@ -239,8 +283,13 @@ async function seedDatabase(pool) {
   return {
     adminEmail: "admin.fixture@cohortbridge.dev",
     adminPassword: "SeedAdmin123!",
+    advisorEmail: "advisor.fixture@cohortbridge.dev",
+    advisorPassword: "SeedAdvisor123!",
+    alumniEmail: "alumni.fixture@cohortbridge.dev",
+    alumniPassword: "SeedAlumni123!",
     studentEmail: "student.fixture@cohortbridge.dev",
     studentPassword: "SeedStudent123!",
+    alumniId: alumni.id,
     questionId
   };
 }

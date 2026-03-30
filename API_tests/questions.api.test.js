@@ -11,6 +11,7 @@ let fixtures;
 async function resetDatabase() {
   await pool.query(`
     TRUNCATE TABLE
+      privacy_view_tokens,
       refresh_tokens,
       question_tags,
       messages,
@@ -251,3 +252,4 @@ describe("questions + saved searches API", () => {
     expect(allow.body.result).toBeDefined();
   });
 });
+
