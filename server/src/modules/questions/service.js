@@ -119,6 +119,24 @@ function normalizeResourceRow(row) {
 
 function buildResourceWhere(filters, values) {
   const clauses = [];
+  function pushScopeClause(column, filterValue) {
+    if (filterValue == null) {
+      return;
+    }
+
+    if (Array.isArray(filterValue)) {
+      if (filterValue.length === 0) {
+        clauses.push("FALSE");
+        return;
+      }
+      values.push(filterValue);
+      clauses.push(`${column} = ANY($${values.length}::text[])`);
+      return;
+    }
+
+    values.push(filterValue);
+    clauses.push(`${column} = $${values.length}`);
+  }
 
   if (filters.q) {
     values.push(`%${filters.q}%`);
@@ -145,20 +163,10 @@ function buildResourceWhere(filters, values) {
     clauses.push(`r.created_at <= $${values.length}`);
   }
 
-  if (filters.school) {
-    values.push(filters.school);
-    clauses.push(`r.school = $${values.length}`);
-  }
-
-  if (filters.major) {
-    values.push(filters.major);
-    clauses.push(`r.major = $${values.length}`);
-  }
-
-  if (filters.cohort) {
-    values.push(filters.cohort);
-    clauses.push(`r.cohort = $${values.length}`);
-  }
+  pushScopeClause("r.school", filters.school);
+  pushScopeClause("r.major", filters.major);
+  pushScopeClause("r.class_section", filters.class_section);
+  pushScopeClause("r.cohort", filters.cohort);
 
   if (clauses.length === 0) {
     return "";
@@ -448,9 +456,10 @@ async function deleteQuestion(pool, questionId, actor) {
   await deleteQuestionDocument(questionId);
 }
 
-async function listResources(pool, params) {
+async function listResources(pool, params, actor = null) {
+  const effectiveFilters = applyActorScopeFilters(actor, params.filters || {});
   const values = [];
-  const where = buildResourceWhere(params.filters, values);
+  const where = buildResourceWhere(effectiveFilters, values);
 
   const countResult = await pool.query(
     `SELECT COUNT(*)::bigint AS total FROM resources r ${where}`,

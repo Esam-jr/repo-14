@@ -1,5 +1,5 @@
 <script>
-  import { apiFetch } from "../lib/api";
+  import { apiFetch, decodeJwt, hasRole } from "../lib/api";
   export let token = "";
 
   let templates = [];
@@ -19,6 +19,13 @@
     variables: "",
     is_critical: false
   };
+
+  function currentAuth() {
+    return decodeJwt(token);
+  }
+
+  $: auth = currentAuth();
+  $: canCompose = hasRole(auth, ["faculty", "mentor", "admin"]);
 
   function parseVariables() {
     const obj = {};
@@ -57,7 +64,7 @@
   }
 
   async function loadTemplates() {
-    if (!token) return;
+    if (!token || !canCompose) return;
     try {
       const data = await apiFetch("/templates", { token });
       templates = data.items || [];
@@ -67,6 +74,7 @@
   }
 
   async function send() {
+    if (!canCompose) return;
     loading = true;
     error = "";
     try {
@@ -91,12 +99,18 @@
     }
   }
 
-  $: if (token) loadTemplates();
+  $: if (token && canCompose) loadTemplates();
   $: buildPreview();
 </script>
 
 <section>
   <h2>Messages</h2>
+  {#if !canCompose}
+    <div class="denied-card" data-testid="messages-denied">
+      <p class="error">You do not have permission to send messages or manage templates.</p>
+      <p>Only faculty, mentors, and admins can access messaging controls.</p>
+    </div>
+  {:else}
   <div class="grid">
     <select bind:value={form.template_id}>
       <option value="">No template</option>
@@ -121,6 +135,7 @@
   <button on:click={send} disabled={loading || !token}>Send</button>
   {#if loading}<p>Sending...</p>{/if}
   {#if error}<p class="error">{error}</p>{/if}
+  {/if}
 </section>
 
-<style>.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem}textarea{min-height:120px}.error{color:#a11}</style>
+<style>.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem}textarea{min-height:120px}.error{color:#a11}.denied-card{border:1px solid #e0b3b3;background:#fff4f4;padding:.75rem;border-radius:.5rem}</style>

@@ -10,8 +10,8 @@
   let message = "";
 
   let loginForm = {
-    email: "student.fixture@cohortbridge.dev",
-    password: "SeedStudent123!"
+    email: "",
+    password: ""
   };
 
   let registerForm = {
@@ -80,8 +80,6 @@
         <select bind:value={registerForm.role}>
           <option value="student">student</option>
           <option value="alumni">alumni</option>
-          <option value="faculty">faculty</option>
-          <option value="mentor">mentor</option>
         </select>
       </label>
       <button class="primary" on:click={submitRegister} disabled={loading}>Create Account</button>

@@ -46,3 +46,58 @@ export function decodeJwt(token) {
     return null;
   }
 }
+
+function safeGetStorageValue(storage, key) {
+  try {
+    return storage.getItem(key);
+  } catch (_e) {
+    return null;
+  }
+}
+
+function safeSetStorageValue(storage, key, value) {
+  try {
+    storage.setItem(key, value);
+  } catch (_e) {
+    // Ignore storage write failures.
+  }
+}
+
+function safeRemoveStorageValue(storage, key) {
+  try {
+    storage.removeItem(key);
+  } catch (_e) {
+    // Ignore storage removal failures.
+  }
+}
+
+export function getStoredToken() {
+  const sessionValue = safeGetStorageValue(sessionStorage, "cohortbridge_token");
+  if (sessionValue) {
+    return sessionValue;
+  }
+  // Backward compatibility with older localStorage sessions.
+  return safeGetStorageValue(localStorage, "cohortbridge_token") || "";
+}
+
+export function storeToken(token) {
+  // Prefer sessionStorage to reduce persistence on shared devices.
+  // Security note: production-grade auth should use HttpOnly secure cookies
+  // for token transport/storage to reduce XSS token exfiltration risk.
+  safeSetStorageValue(sessionStorage, "cohortbridge_token", token);
+  // Keep legacy localStorage mirror for compatibility during transition.
+  safeSetStorageValue(localStorage, "cohortbridge_token", token);
+}
+
+export function clearStoredToken() {
+  safeRemoveStorageValue(sessionStorage, "cohortbridge_token");
+  safeRemoveStorageValue(localStorage, "cohortbridge_token");
+}
+
+export function hasRole(authLike, allowedRoles) {
+  if (!authLike) return false;
+  const role = typeof authLike === "string" ? authLike : authLike.role;
+  if (!role) return false;
+  const set = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+  return set.includes(role);
+}

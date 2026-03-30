@@ -237,7 +237,7 @@
   {:else}
     <div class="result-grid">
       {#each result.items as item}
-        <Card tabindex={0}>
+        <Card>
           <div class="question-card">
             <div class="row title-row">
               <h3>{item.title}</h3>

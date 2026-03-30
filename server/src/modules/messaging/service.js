@@ -231,57 +231,95 @@ async function sendMessage(pool, actor, payload) {
     body = renderTemplate(template.body, payload.variables || {});
   }
 
-  const inserted = await pool.query(
-    `INSERT INTO messages (
-      sender_id,
-      recipient_id,
-      recipient_selector,
-      template_id,
-      status,
-      subject,
-      body,
-      metadata,
-      is_critical,
-      created_at,
-      updated_at
-    )
-    VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8::jsonb, $9, $10, $10)
-    RETURNING id, sender_id, subject, body, is_critical, created_at`,
-    [
-      actor.userId,
-      recipients[0],
-      JSON.stringify(payload.recipient_selector),
-      templateId,
-      "sent",
-      subject,
-      body,
-      JSON.stringify({ recipient_count: recipients.length }),
-      payload.is_critical,
-      nowDate().toISOString()
-    ]
-  );
+  const createdAt = nowDate().toISOString();
+  const messageRows = [];
 
-  const message = inserted.rows[0];
+  await pool.query("BEGIN");
+  try {
+    for (const userId of recipients) {
+      // eslint-disable-next-line no-await-in-loop
+      const inserted = await pool.query(
+        `INSERT INTO messages (
+          sender_id,
+          recipient_id,
+          recipient_selector,
+          template_id,
+          status,
+          subject,
+          body,
+          metadata,
+          is_critical,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8::jsonb, $9, $10, $10)
+        RETURNING id, sender_id, recipient_id, subject, body, is_critical, created_at`,
+        [
+          actor.userId,
+          userId,
+          JSON.stringify(payload.recipient_selector),
+          templateId,
+          "sent",
+          subject,
+          body,
+          JSON.stringify({ recipient_count: recipients.length, recipient_id: userId }),
+          payload.is_critical,
+          createdAt
+        ]
+      );
 
-  for (const userId of recipients) {
-    // eslint-disable-next-line no-await-in-loop
+      const message = inserted.rows[0];
+      messageRows.push(message);
+
+      // eslint-disable-next-line no-await-in-loop
+      await pool.query(
+        `INSERT INTO notifications (user_id, message_id, is_read, muted_until, type, status, title, body, metadata, created_at)
+         VALUES ($1, $2, FALSE, NULL, 'message', 'unread', $3, $4, $5::jsonb, $6)`,
+        [
+          userId,
+          message.id,
+          subject,
+          body,
+          JSON.stringify({ is_critical: payload.is_critical, recipient_id: userId }),
+          createdAt
+        ]
+      );
+    }
+
+    const recipientTrace = messageRows.map((row) => ({
+      recipient_id: Number(row.recipient_id),
+      message_id: Number(row.id)
+    }));
+
     await pool.query(
-      `INSERT INTO notifications (user_id, message_id, is_read, muted_until, type, status, title, body, metadata, created_at)
-       VALUES ($1, $2, FALSE, NULL, 'message', 'unread', $3, $4, $5::jsonb, $6)`,
-      [userId, message.id, subject, body, JSON.stringify({ is_critical: payload.is_critical }), message.created_at]
+      `INSERT INTO audit_logs (actor_id, action, target_type, target_id, metadata)
+       VALUES ($1, 'message_sent', 'message_batch', $2, $3::jsonb)`,
+      [
+        actor.userId,
+        String(messageRows[0].id),
+        JSON.stringify({
+          recipient_count: recipients.length,
+          is_critical: payload.is_critical,
+          recipients: recipientTrace
+        })
+      ]
     );
+
+    await pool.query("COMMIT");
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    throw error;
   }
 
-  await pool.query(
-    `INSERT INTO audit_logs (actor_id, action, target_type, target_id, metadata)
-     VALUES ($1, 'message_sent', 'message', $2, $3::jsonb)`,
-    [actor.userId, String(message.id), JSON.stringify({ recipient_count: recipients.length, is_critical: payload.is_critical })]
-  );
-
-  authInfo("message_sent", { messageId: message.id, senderId: actor.userId, recipientCount: recipients.length });
+  authInfo("message_sent", {
+    messageId: messageRows[0].id,
+    senderId: actor.userId,
+    recipientCount: recipients.length
+  });
 
   return {
-    message,
+    message: messageRows[0],
+    messages: messageRows,
     recipient_count: recipients.length,
     recipient_ids: recipients
   };

@@ -1,8 +1,4 @@
-<script>
-  export let tabindex = 0;
-</script>
-
-<article class="card app-card" {tabindex}>
+<article class="card app-card">
   <slot />
 </article>
 

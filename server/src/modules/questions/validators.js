@@ -135,6 +135,7 @@ function parseResourceListQuery(query) {
       end_date: parseDate(query.end_date, "end_date"),
       school: sanitizeString(query.school, 120),
       major: sanitizeString(query.major, 120),
+      class_section: sanitizeString(query.class_section, 120),
       cohort: sanitizeString(query.cohort, 120)
     },
     page,

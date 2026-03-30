@@ -77,6 +77,30 @@ describe("auth role lockdown", () => {
     expect(userQuery.rowCount).toBe(0);
   });
 
+  test("public register with alumni role succeeds and preserves role", async () => {
+    const email = `lockdown_alumni_${Date.now()}@example.com`;
+    const password = "StrongPass123!";
+
+    const registerRes = await request(app)
+      .post("/auth/register")
+      .send({
+        email,
+        password,
+        role: "alumni"
+      });
+
+    expect(registerRes.status).toBe(201);
+    expect(registerRes.body.user.role).toBe("alumni");
+    expect(registerRes.body.user.email).toBe(email);
+
+    const userQuery = await pool.query(
+      "SELECT id, role FROM users WHERE email = $1",
+      [email]
+    );
+    expect(userQuery.rowCount).toBe(1);
+    expect(userQuery.rows[0].role).toBe("alumni");
+  });
+
   test("admin can create another admin via /admin/users", async () => {
     const adminToken = await login(fixtures.adminEmail, fixtures.adminPassword);
     const email = `created_admin_${Date.now()}@example.com`;

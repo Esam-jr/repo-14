@@ -1,7 +1,7 @@
 <script>
   import { tick } from "svelte";
   import { fade } from "svelte/transition";
-  import { decodeJwt } from "./lib/api";
+  import { decodeJwt, getStoredToken, storeToken, clearStoredToken, hasRole } from "./lib/api";
   import Landing from "./pages/Landing.svelte";
   import QuestionsList from "./pages/QuestionsList.svelte";
   import QuestionDetail from "./pages/QuestionDetail.svelte";
@@ -19,7 +19,7 @@
 
   let route = "landing";
   let routeQuestionId = "";
-  let token = localStorage.getItem("cohortbridge_token") || "";
+  let token = getStoredToken();
   let auth = token ? decodeJwt(token) : null;
   let toasts = [];
   let questionsFilterState = null;
@@ -35,8 +35,14 @@
     }, 3000);
   }
 
+  const STAFF_ROLES = ["faculty", "mentor", "admin"];
+
   function isAdminConsoleAllowed() {
-    return auth && ["admin", "faculty", "mentor"].includes(auth.role);
+    return hasRole(auth, STAFF_ROLES);
+  }
+
+  function isMessagingAllowed() {
+    return hasRole(auth, STAFF_ROLES);
   }
 
   function setRoute(next, questionId = "") {
@@ -70,7 +76,7 @@
   function onLoggedIn(event) {
     token = event.detail.accessToken;
     auth = decodeJwt(token);
-    localStorage.setItem("cohortbridge_token", token);
+    storeToken(token);
     pushToast("success", "Welcome back.");
     setRoute("landing");
   }
@@ -78,7 +84,7 @@
   function logout() {
     token = "";
     auth = null;
-    localStorage.removeItem("cohortbridge_token");
+    clearStoredToken();
     pushToast("info", "Logged out.");
     setRoute("auth");
   }
@@ -92,7 +98,11 @@
   }
 
   $: if (route === "admin" && !isAdminConsoleAllowed()) {
-    setRoute("landing");
+    // Keep route so denied-state UI can be shown.
+  }
+
+  $: if (route === "messages" && token && !isMessagingAllowed()) {
+    // Keep route so denied-state UI can be shown.
   }
 
   parseHash();
@@ -121,15 +131,15 @@
         <li><button data-testid="nav-questions" on:click={() => setRoute("questions")} disabled={!token}>Questions</button></li>
         <li><button data-testid="nav-ask" on:click={() => setRoute("ask")} disabled={!token}>Ask</button></li>
         <li><button data-testid="nav-saved" on:click={() => setRoute("saved")} disabled={!token}>Saved</button></li>
-        <li><button data-testid="nav-messages" on:click={() => setRoute("messages")} disabled={!token}>Messages</button></li>
+        <li><button data-testid="nav-messages" on:click={() => setRoute("messages")} disabled={!token || !isMessagingAllowed()}>Messages</button></li>
         <li><button data-testid="nav-notifications" on:click={() => setRoute("notifications")} disabled={!token}>Notifications</button></li>
         <li><button data-testid="nav-profile" on:click={() => setRoute("profile")} disabled={!token}>Profile</button></li>
-        <li><button data-testid="nav-admin" on:click={() => setRoute("admin")} disabled={!isAdminConsoleAllowed()}>Admin</button></li>
+        <li><button data-testid="nav-admin" on:click={() => setRoute("admin")} disabled={!token || !isAdminConsoleAllowed()}>Admin</button></li>
         <li>
           {#if !token}
-            <button data-testid="nav-login" class="primary" on:click={() => setRoute("auth")}>Login / Register</button>
+            <button data-testid="nav-auth" class="primary" on:click={() => setRoute("auth")}>Login / Register</button>
           {:else}
-            <button data-testid="nav-logout" on:click={logout}>Logout</button>
+            <button data-testid="nav-auth" on:click={logout}>Logout</button>
           {/if}
         </li>
       </ul>
@@ -149,13 +159,36 @@
   {:else if route === "saved"}
     <SavedSearches token={token} currentFilters={questionsFilterState} />
   {:else if route === "messages"}
-    <Messages token={token} />
+    {#if !token}
+      <Auth on:loggedIn={onLoggedIn} />
+    {:else if isMessagingAllowed()}
+      <Messages token={token} />
+    {:else}
+      <section class="card denied" data-testid="denied-messages">
+        <h2>Access Restricted</h2>
+        <p class="muted">Messaging and template controls are available to faculty, mentors, and admins.</p>
+        <div class="row">
+          <button on:click={() => setRoute("notifications")}>Go to Notifications</button>
+          <a class="contact-link" href="mailto:admin@cohortbridge.local">Contact Administrator</a>
+        </div>
+      </section>
+    {/if}
   {:else if route === "notifications"}
     <Notifications token={token} />
   {:else if route === "profile"}
     <Profile token={token} />
   {:else if route === "admin"}
-    <AdminConsole token={token} />
+    {#if !token}
+      <Auth on:loggedIn={onLoggedIn} />
+    {:else if isAdminConsoleAllowed()}
+      <AdminConsole token={token} />
+    {:else}
+      <section class="card denied" data-testid="denied-admin">
+        <h2>Access Restricted</h2>
+        <p class="muted">Admin tools require delegated staff permissions.</p>
+        <a class="contact-link" href="mailto:admin@cohortbridge.local">Request Access</a>
+      </section>
+    {/if}
   {:else}
     <NotFound />
   {/if}
@@ -381,6 +414,17 @@
 
   .toast.info {
     border-left-color: #245e8e;
+  }
+
+  .denied {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .contact-link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   @media (max-width: 880px) {

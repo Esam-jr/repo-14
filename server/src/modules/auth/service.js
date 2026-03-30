@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { AppError } = require("../../errors");
 const { authInfo, authWarn } = require("../../logger");
 const { hashPassword, verifyPassword } = require("./password");
@@ -16,6 +17,38 @@ const {
   revokeRefreshToken,
   revokeAllRefreshTokensForUser
 } = require("./repository");
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function hashEmail(email) {
+  return crypto
+    .createHash("sha256")
+    .update(normalizeEmail(email))
+    .digest("hex")
+    .slice(0, 8);
+}
+
+function maskEmail(email) {
+  const normalized = normalizeEmail(email);
+  const at = normalized.indexOf("@");
+  if (at <= 0) {
+    return "***";
+  }
+
+  const local = normalized.slice(0, at);
+  const domain = normalized.slice(at + 1);
+  const prefix = local.slice(0, 1) || "*";
+  return `${prefix}***@${domain}`;
+}
+
+function emailLogMeta(email) {
+  return {
+    email_hash: hashEmail(email),
+    email_hint: maskEmail(email)
+  };
+}
 
 function sanitizeUser(user) {
   return {
@@ -40,7 +73,11 @@ async function register(pool, payload) {
     scopes: payload.scopes
   });
 
-  authInfo("register_success", { userId: user.id, email: user.email, role: user.role });
+  authInfo("register_success", {
+    userId: user.id,
+    role: user.role,
+    ...emailLogMeta(user.email)
+  });
 
   return sanitizeUser(user);
 }
@@ -49,18 +86,26 @@ async function login(pool, email, password) {
   const user = await findUserByEmail(pool, email);
 
   if (!user) {
-    authWarn("login_failure", { email, reason: "invalid_credentials" });
+    authWarn("login_failure", { reason: "invalid_credentials", ...emailLogMeta(email) });
     throw new AppError(401, "invalid_credentials", "Invalid email or password.");
   }
 
   if (user.is_frozen) {
-    authWarn("account_freeze", { userId: user.id, email: user.email, reason: "frozen_login_attempt" });
+    authWarn("account_freeze", {
+      userId: user.id,
+      reason: "frozen_login_attempt",
+      ...emailLogMeta(user.email)
+    });
     throw new AppError(403, "account_frozen", "Account is frozen.");
   }
 
   const ok = await verifyPassword(password, user.password_hash);
   if (!ok) {
-    authWarn("login_failure", { userId: user.id, email, reason: "invalid_credentials" });
+    authWarn("login_failure", {
+      userId: user.id,
+      reason: "invalid_credentials",
+      ...emailLogMeta(email)
+    });
     throw new AppError(401, "invalid_credentials", "Invalid email or password.");
   }
 
@@ -73,7 +118,11 @@ async function login(pool, email, password) {
     expiresAt: refresh.expiresAt
   });
 
-  authInfo("login_success", { userId: user.id, email: user.email, role: user.role });
+  authInfo("login_success", {
+    userId: user.id,
+    role: user.role,
+    ...emailLogMeta(user.email)
+  });
 
   return {
     user: sanitizeUser(user),
@@ -162,5 +211,7 @@ module.exports = {
   login,
   refresh,
   logout,
-  sanitizeUser
+  sanitizeUser,
+  hashEmail,
+  maskEmail
 };

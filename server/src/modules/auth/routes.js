@@ -23,7 +23,6 @@ function createAuthRouter(pool) {
     }
 
     const payload = validateRegisterInput(body, { allowedRoles: PUBLIC_REGISTER_ROLES });
-    payload.role = "student";
     const user = await register(pool, payload);
     res.status(201).json({ user });
   }));

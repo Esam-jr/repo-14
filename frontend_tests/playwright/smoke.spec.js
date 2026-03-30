@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+function makeStudentToken() {
+  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ sub: "999", role: "student" })).toString("base64url");
+  return `${header}.${payload}.`;
+}
+
 test("landing smoke", async ({ page }) => {
   await page.goto("http://localhost:3000");
   await expect(page.getByRole("heading", { name: "CohortBridge" })).toBeVisible();
@@ -10,17 +16,27 @@ test("landing smoke", async ({ page }) => {
     await menuToggle.click();
   }
 
-  const questionsByTestId = page.getByTestId("nav-questions");
-  if (await questionsByTestId.count()) {
-    await expect(questionsByTestId).toBeVisible();
-  } else {
-    await expect(page.getByRole("button", { name: /Questions|QuestionsList/i })).toBeVisible();
-  }
+  await expect(page.locator('[data-testid="nav-landing"]')).toBeVisible();
+  await expect(page.locator('[data-testid="nav-questions"]')).toBeVisible();
+  await expect(page.locator('[data-testid="nav-messages"]')).toBeVisible();
+  await expect(page.locator('[data-testid="nav-admin"]')).toBeVisible();
+  await expect(page.locator('[data-testid="nav-auth"]')).toBeVisible();
+});
 
-  const loginByTestId = page.getByTestId("nav-login");
-  if (await loginByTestId.count()) {
-    await expect(loginByTestId).toBeVisible();
+test("non-staff sees denied state on messaging route", async ({ page }) => {
+  const token = makeStudentToken();
+  await page.addInitScript((value) => {
+    window.localStorage.setItem("cohortbridge_token", value);
+    window.sessionStorage.setItem("cohortbridge_token", value);
+  }, token);
+
+  await page.goto("http://localhost:3000/#messages");
+  const deniedFromAppGuard = page.locator('[data-testid="denied-messages"]');
+  const deniedFromMessagesPage = page.locator('[data-testid="messages-denied"]');
+
+  if (await deniedFromAppGuard.count()) {
+    await expect(deniedFromAppGuard).toBeVisible();
   } else {
-    await expect(page.getByRole("button", { name: /Login|Register/i })).toBeVisible();
+    await expect(deniedFromMessagesPage).toBeVisible();
   }
 });

@@ -252,6 +252,8 @@ Role model:
 ## Notes
 - No secrets are committed; use `.env` locally.
 - `.env.example` documents required environment variables.
+- Client token storage currently uses `sessionStorage` (with legacy `localStorage` compatibility). Recommended production approach: move access/refresh handling to `HttpOnly` + `Secure` cookies to reduce XSS exposure.
+- Add CSP/XSS hardening in production (for example: strict Content Security Policy, output encoding, and avoiding unsafe inline scripts).
 
 ## Frontend UI Note
 - Global design tokens and utility classes are in [App.svelte](C:\Users\hp\Desktop\My projects\TASK-14\repo\client\src\App.svelte) under `:root` and global `.container/.card/.row/.muted/.visually-hidden`.

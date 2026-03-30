@@ -71,9 +71,9 @@ function createQuestionRouter(pool) {
     res.status(200).json({ ok: true });
   }));
 
-  router.get("/resources", asyncHandler(async (req, res) => {
+  router.get("/resources", requireOptionalAuth, asyncHandler(async (req, res) => {
     const parsed = parseResourceListQuery(req.query || {});
-    const result = await listResources(pool, parsed);
+    const result = await listResources(pool, parsed, req.auth || null);
     res.status(200).json(result);
   }));
 
