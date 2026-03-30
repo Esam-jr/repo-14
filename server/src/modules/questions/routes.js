@@ -1,6 +1,6 @@
 const express = require("express");
 const { AppError } = require("../../errors");
-const { requireAuth, requireRole } = require("../auth/middleware");
+const { requireAuth, requireOptionalAuth, requireRole } = require("../auth/middleware");
 const {
   parseListQuery,
   parseResourceListQuery,
@@ -40,9 +40,9 @@ function parseId(value, fieldName) {
 function createQuestionRouter(pool) {
   const router = express.Router();
 
-  router.get("/questions", asyncHandler(async (req, res) => {
+  router.get("/questions", requireOptionalAuth, asyncHandler(async (req, res) => {
     const parsed = parseListQuery(req.query || {});
-    const result = await listQuestions(pool, parsed);
+    const result = await listQuestions(pool, parsed, req.auth || null);
     res.status(200).json(result);
   }));
 
@@ -122,7 +122,7 @@ function createQuestionRouter(pool) {
     if (body.per_page !== undefined) overrides.per_page = parsed.per_page;
     if (body.sort_by !== undefined) overrides.sort_by = parsed.sort_by;
     if (body.sort_dir !== undefined) overrides.sort_dir = parsed.sort_dir;
-    const results = await applySavedSearch(pool, req.auth.userId, id, overrides);
+    const results = await applySavedSearch(pool, req.auth.userId, id, overrides, req.auth);
     res.status(200).json(results);
   }));
 

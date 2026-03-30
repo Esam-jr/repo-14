@@ -5,6 +5,10 @@ CohortBridge is a container-first monorepo with:
 - `client/`: Svelte landing page
 - `unit_tests/` and `API_tests/`: Jest + Supertest examples
 
+Run options:
+- Docker flow: see `Run app`
+- Non-Docker flow: see `Local Dev (no Docker)`
+
 ## Prerequisites
 - Docker + Docker Compose
 - Bash/sh (for `run_tests.sh`)
@@ -45,6 +49,101 @@ curl http://localhost:4000/health
 curl http://localhost:3000
 ```
 
+## Local Dev (no Docker)
+Use this quickstart to run and verify the app locally without Docker.
+
+Install root deps:
+
+```bash
+npm install
+```
+
+Install workspace packages:
+
+```bash
+npm --workspace server install
+npm --workspace client install
+```
+
+Copy env example:
+
+```bash
+cp .env.example .env
+```
+
+`.env.example` already includes minimal local values. Ensure at least these are present in `.env`:
+
+```bash
+DATABASE_URL=postgres://cohortbridge:cohortbridge@localhost:5432/cohortbridge
+JWT_SECRET=change-me-local-only
+ACCESS_TOKEN_TTL_SECONDS=900
+REFRESH_TOKEN_TTL_DAYS=30
+```
+
+Create local Postgres for the example connection:
+
+- macOS (Homebrew): `brew services start postgresql`
+- Windows: start PostgreSQL from `services.msc` (service name is usually `postgresql-x64-*`) or use pgAdmin service controls.
+
+Then run either:
+
+```bash
+createdb cohortbridge
+```
+
+Or SQL in `psql`:
+
+```sql
+CREATE USER cohortbridge WITH PASSWORD 'cohortbridge';
+CREATE DATABASE cohortbridge OWNER cohortbridge;
+GRANT ALL PRIVILEGES ON DATABASE cohortbridge TO cohortbridge;
+```
+
+Run DB migrations locally:
+
+```bash
+npm --workspace server run migrate
+```
+
+Seed sample data:
+
+```bash
+npm --workspace server run seed
+```
+
+Start server locally (listens on port `4000`):
+
+```bash
+npm --workspace server run start
+```
+
+Start client locally (listens on port `3000`):
+
+```bash
+npm --workspace client run dev
+```
+
+Or use the root helper scripts in two terminals:
+
+```bash
+npm run start:server:local
+```
+
+```bash
+npm run start:client:local
+```
+
+Quick verification:
+
+```bash
+curl http://localhost:4000/health
+```
+
+Open:
+- `http://localhost:3000`
+
+Docker remains the preferred path for production-like runs, but these steps are useful for fast local verification without Docker.
+
 ## Run tests
 
 ```bash
@@ -52,6 +151,33 @@ curl http://localhost:3000
 ```
 
 The script installs dependencies, ensures the database service is up, runs unit/API tests, and prints a final summary.
+
+### Run tests locally (no Docker)
+1. Ensure local Postgres is running and `DATABASE_URL` is set.
+2. Ensure `JWT_SECRET` is set.
+3. Install dependencies.
+4. Run tests.
+
+```bash
+export DATABASE_URL=postgres://cohortbridge:cohortbridge@localhost:5432/cohortbridge
+export JWT_SECRET=change-me-local-only
+npm install
+npm test
+```
+
+API-only local run:
+
+```bash
+export DATABASE_URL=postgres://cohortbridge:cohortbridge@localhost:5432/cohortbridge
+export JWT_SECRET=change-me-local-only
+npm run test:api
+```
+
+Optional helper script for local/no-Docker flow:
+
+```bash
+./run_tests_local.sh
+```
 
 Frontend tests:
 

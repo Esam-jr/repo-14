@@ -252,6 +252,44 @@ describe("questions + saved searches API", () => {
     expect(allow.body.ok).toBe(true);
     expect(allow.body.result).toBeDefined();
   });
+
+  test("scoped faculty cannot expand scope and can browse in-scope questions", async () => {
+    const adminToken = await login(fixtures.adminEmail, fixtures.adminPassword);
+    const facultyToken = await login(fixtures.advisorEmail, fixtures.advisorPassword);
+
+    const outOfScope = await request(app)
+      .post("/questions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        title: "Out of scope business question",
+        body: "Should not be visible to engineering faculty",
+        question_type: "discussion",
+        difficulty: "beginner",
+        status: "open",
+        school: "Business",
+        major: "Finance",
+        cohort: "2030"
+      });
+
+    expect(outOfScope.status).toBe(201);
+    const outOfScopeId = outOfScope.body.question.id;
+
+    const denied = await request(app)
+      .get("/questions")
+      .set("Authorization", `Bearer ${facultyToken}`)
+      .query({ cohort: "2030" });
+
+    expect(denied.status).toBe(403);
+
+    const inScope = await request(app)
+      .get("/questions")
+      .set("Authorization", `Bearer ${facultyToken}`)
+      .query({ cohort: "2026", school: "Engineering" });
+
+    expect(inScope.status).toBe(200);
+    expect(inScope.body.items.length).toBeGreaterThan(0);
+    expect(inScope.body.items.some((q) => Number(q.id) === Number(outOfScopeId))).toBe(false);
+  });
 });
 
 

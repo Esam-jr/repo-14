@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: cohortbridge
+          POSTGRES_USER: cohortbridge
+          POSTGRES_PASSWORD: cohortbridge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cohortbridge -d cohortbridge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://cohortbridge:cohortbridge@localhost:5432/cohortbridge
+      JWT_SECRET: test_secret_ci
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npx jest unit_tests --runInBand
+
+      - name: Run API tests
+        run: npx jest API_tests --runInBand
+
+      - name: Run frontend component tests
+        run: npm run test:frontend:component

@@ -55,18 +55,47 @@ async function listTemplates(pool, actor) {
     throw new AppError(403, "forbidden", "Insufficient permission to list templates.");
   }
 
+  const isAdmin = actor.role === "admin";
+  const result = isAdmin
+    ? await pool.query(
+      `SELECT id, name, subject, body, variables, created_by, created_at, updated_at
+       FROM message_templates
+       ORDER BY updated_at DESC`
+    )
+    : await pool.query(
+      `SELECT id, name, subject, body, variables, created_by, created_at, updated_at
+       FROM message_templates
+       WHERE created_by = $1
+       ORDER BY updated_at DESC`,
+      [actor.userId]
+    );
+
+  return result.rows;
+}
+
+async function getTemplateById(pool, templateId) {
   const result = await pool.query(
     `SELECT id, name, subject, body, variables, created_by, created_at, updated_at
      FROM message_templates
-     ORDER BY updated_at DESC`
+     WHERE id = $1`,
+    [templateId]
   );
 
-  return result.rows;
+  return result.rows[0] || null;
 }
 
 async function updateTemplate(pool, actor, templateId, payload) {
   if (!canManageTemplates(actor)) {
     throw new AppError(403, "forbidden", "Insufficient permission to update templates.");
+  }
+
+  const existing = await getTemplateById(pool, templateId);
+  if (!existing) {
+    throw new AppError(404, "not_found", "Template not found.");
+  }
+
+  if (actor.role !== "admin" && Number(existing.created_by) !== Number(actor.userId)) {
+    throw new AppError(403, "forbidden", "You can only update templates you created.");
   }
 
   const result = await pool.query(
@@ -81,16 +110,21 @@ async function updateTemplate(pool, actor, templateId, payload) {
     [templateId, payload.name, payload.subject, payload.body, JSON.stringify(payload.variables)]
   );
 
-  if (result.rowCount === 0) {
-    throw new AppError(404, "not_found", "Template not found.");
-  }
-
   return result.rows[0];
 }
 
 async function deleteTemplate(pool, actor, templateId) {
   if (!canManageTemplates(actor)) {
     throw new AppError(403, "forbidden", "Insufficient permission to delete templates.");
+  }
+
+  const existing = await getTemplateById(pool, templateId);
+  if (!existing) {
+    throw new AppError(404, "not_found", "Template not found.");
+  }
+
+  if (actor.role !== "admin" && Number(existing.created_by) !== Number(actor.userId)) {
+    throw new AppError(403, "forbidden", "You can only delete templates you created.");
   }
 
   const result = await pool.query("DELETE FROM message_templates WHERE id = $1", [templateId]);

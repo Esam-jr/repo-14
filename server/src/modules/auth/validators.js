@@ -42,10 +42,13 @@ function normalizeScopes(scopes) {
   return normalized;
 }
 
-function validateRegisterInput(body) {
+function validateRegisterInput(body, options = {}) {
+  const allowedRoles = Array.isArray(options.allowedRoles) && options.allowedRoles.length > 0
+    ? options.allowedRoles
+    : ROLES;
   const email = (body.email || "").toLowerCase().trim();
   const password = body.password;
-  const role = body.role || "student";
+  const role = String(body.role || "student").toLowerCase();
   const profile = body.profile || {};
   const scopes = normalizeScopes(body.scopes);
 
@@ -59,6 +62,10 @@ function validateRegisterInput(body) {
 
   if (!ROLES.includes(role)) {
     throw new AppError(400, "validation_error", "role is invalid.");
+  }
+
+  if (!allowedRoles.includes(role)) {
+    throw new AppError(403, "forbidden", "Public registration cannot assign privileged roles.");
   }
 
   if (typeof profile !== "object" || Array.isArray(profile)) {

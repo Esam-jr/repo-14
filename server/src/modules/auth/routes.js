@@ -1,5 +1,6 @@
 const express = require("express");
 const { AppError } = require("../../errors");
+const { PUBLIC_REGISTER_ROLES } = require("./constants");
 const { validateRegisterInput, validateLoginInput } = require("./validators");
 const { refreshCookieOptions } = require("./token");
 const { requireAuth, requireRole } = require("./middleware");
@@ -14,7 +15,15 @@ function createAuthRouter(pool) {
   const router = express.Router();
 
   router.post("/register", asyncHandler(async (req, res) => {
-    const payload = validateRegisterInput(req.body || {});
+    const body = req.body || {};
+    const requestedRole = body.role == null ? "student" : String(body.role).trim().toLowerCase();
+
+    if (!req.auth && !PUBLIC_REGISTER_ROLES.includes(requestedRole)) {
+      throw new AppError(403, "forbidden", "Public registration cannot assign privileged roles.");
+    }
+
+    const payload = validateRegisterInput(body, { allowedRoles: PUBLIC_REGISTER_ROLES });
+    payload.role = "student";
     const user = await register(pool, payload);
     res.status(201).json({ user });
   }));

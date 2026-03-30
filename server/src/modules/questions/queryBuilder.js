@@ -1,5 +1,23 @@
 function buildQuestionWhere(filters, values, options = {}) {
   const clauses = [];
+  function pushScopeClause(column, filterValue) {
+    if (filterValue == null) {
+      return;
+    }
+
+    if (Array.isArray(filterValue)) {
+      if (filterValue.length === 0) {
+        clauses.push("FALSE");
+        return;
+      }
+      values.push(filterValue);
+      clauses.push(`${column} = ANY($${values.length}::text[])`);
+      return;
+    }
+
+    values.push(filterValue);
+    clauses.push(`${column} = $${values.length}`);
+  }
 
   if (filters.q) {
     if (options.searchIds) {
@@ -50,20 +68,10 @@ function buildQuestionWhere(filters, values, options = {}) {
     clauses.push(`q.created_at <= $${values.length}`);
   }
 
-  if (filters.school) {
-    values.push(filters.school);
-    clauses.push(`q.school = $${values.length}`);
-  }
-
-  if (filters.major) {
-    values.push(filters.major);
-    clauses.push(`q.major = $${values.length}`);
-  }
-
-  if (filters.cohort) {
-    values.push(filters.cohort);
-    clauses.push(`q.cohort = $${values.length}`);
-  }
+  pushScopeClause("q.school", filters.school);
+  pushScopeClause("q.major", filters.major);
+  pushScopeClause("q.class_section", filters.class_section);
+  pushScopeClause("q.cohort", filters.cohort);
 
   if (filters.tag) {
     values.push(filters.tag);

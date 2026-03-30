@@ -117,19 +117,19 @@
 
     <nav aria-label="Primary">
       <ul id="primary-navigation" class:open={menuOpen}>
-        <li><button bind:this={firstNavControl} on:click={() => setRoute("landing")}>Landing</button></li>
-        <li><button on:click={() => setRoute("questions")} disabled={!token}>Questions</button></li>
-        <li><button on:click={() => setRoute("ask")} disabled={!token}>Ask</button></li>
-        <li><button on:click={() => setRoute("saved")} disabled={!token}>Saved</button></li>
-        <li><button on:click={() => setRoute("messages")} disabled={!token}>Messages</button></li>
-        <li><button on:click={() => setRoute("notifications")} disabled={!token}>Notifications</button></li>
-        <li><button on:click={() => setRoute("profile")} disabled={!token}>Profile</button></li>
-        <li><button on:click={() => setRoute("admin")} disabled={!isAdminConsoleAllowed()}>Admin</button></li>
+        <li><button data-testid="nav-landing" bind:this={firstNavControl} on:click={() => setRoute("landing")}>Landing</button></li>
+        <li><button data-testid="nav-questions" on:click={() => setRoute("questions")} disabled={!token}>Questions</button></li>
+        <li><button data-testid="nav-ask" on:click={() => setRoute("ask")} disabled={!token}>Ask</button></li>
+        <li><button data-testid="nav-saved" on:click={() => setRoute("saved")} disabled={!token}>Saved</button></li>
+        <li><button data-testid="nav-messages" on:click={() => setRoute("messages")} disabled={!token}>Messages</button></li>
+        <li><button data-testid="nav-notifications" on:click={() => setRoute("notifications")} disabled={!token}>Notifications</button></li>
+        <li><button data-testid="nav-profile" on:click={() => setRoute("profile")} disabled={!token}>Profile</button></li>
+        <li><button data-testid="nav-admin" on:click={() => setRoute("admin")} disabled={!isAdminConsoleAllowed()}>Admin</button></li>
         <li>
           {#if !token}
-            <button class="primary" on:click={() => setRoute("auth")}>Login / Register</button>
+            <button data-testid="nav-login" class="primary" on:click={() => setRoute("auth")}>Login / Register</button>
           {:else}
-            <button on:click={logout}>Logout</button>
+            <button data-testid="nav-logout" on:click={logout}>Logout</button>
           {/if}
         </li>
       </ul>

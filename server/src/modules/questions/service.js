@@ -24,8 +24,59 @@ const RESOURCE_SORT_COLUMN_MAP = {
   resource_type: "r.resource_type"
 };
 
+const SCOPED_BROWSE_ROLES = new Set(["faculty", "mentor"]);
+const SCOPED_KEYS = ["school", "major", "class_section", "cohort"];
+
 function nowMs() {
   return Number(process.hrtime.bigint() / 1000000n);
+}
+
+function asArray(value) {
+  if (value == null) {
+    return [];
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+function normalizeScopeValues(value) {
+  return asArray(value).map((v) => String(v || "").trim()).filter(Boolean);
+}
+
+function applyActorScopeFilters(actor, filters) {
+  if (!actor || !SCOPED_BROWSE_ROLES.has(actor.role)) {
+    return { ...filters };
+  }
+
+  const actorScopes = actor.scopes || {};
+  const hasAnyScope = SCOPED_KEYS.some((key) => normalizeScopeValues(actorScopes[key]).length > 0);
+  if (!hasAnyScope) {
+    throw new AppError(403, "forbidden", "Scoped role requires assigned scope values for question browsing.");
+  }
+
+  const constrained = { ...filters };
+
+  for (const key of SCOPED_KEYS) {
+    const actorValues = normalizeScopeValues(actorScopes[key]);
+    if (actorValues.length === 0) {
+      continue;
+    }
+
+    const clientRaw = constrained[key];
+    if (clientRaw == null) {
+      constrained[key] = actorValues;
+      continue;
+    }
+
+    const clientValues = normalizeScopeValues(clientRaw);
+    const outOfScope = clientValues.filter((value) => !actorValues.includes(value));
+    if (outOfScope.length > 0) {
+      throw new AppError(403, "forbidden", `Requested ${key} is outside your assigned scope.`);
+    }
+
+    constrained[key] = Array.isArray(clientRaw) ? clientValues : clientValues[0];
+  }
+
+  return constrained;
 }
 
 function normalizeQuestionRow(row) {
@@ -156,12 +207,13 @@ async function setQuestionTags(pool, questionId, tags) {
   }
 }
 
-async function listQuestions(pool, params) {
+async function listQuestions(pool, params, actor = null) {
   const start = nowMs();
+  const effectiveFilters = applyActorScopeFilters(actor, params.filters || {});
   const values = [];
 
-  const searchIds = await resolveQuestionIds(pool, params.filters);
-  const where = buildQuestionWhere(params.filters, values, { searchIds });
+  const searchIds = await resolveQuestionIds(pool, effectiveFilters);
+  const where = buildQuestionWhere(effectiveFilters, values, { searchIds });
 
   const countResult = await pool.query(
     `SELECT COUNT(*)::bigint AS total
@@ -211,7 +263,7 @@ async function listQuestions(pool, params) {
 
   authInfo("questions_search", {
     engine: getSearchEngine(),
-    q: params.filters.q || null,
+    q: effectiveFilters.q || null,
     total,
     duration_ms: nowMs() - start
   });
@@ -580,7 +632,7 @@ async function listSavedSearches(pool, userId) {
   return result.rows;
 }
 
-async function applySavedSearch(pool, userId, searchId, overrides = {}) {
+async function applySavedSearch(pool, userId, searchId, overrides = {}, actor = null) {
   const saved = await pool.query(
     `SELECT id, COALESCE(label, name) AS label, filters, is_frequently_used
      FROM saved_searches
@@ -602,7 +654,7 @@ async function applySavedSearch(pool, userId, searchId, overrides = {}) {
   if (overrides.sort_by != null) parsed.sort_by = overrides.sort_by;
   if (overrides.sort_dir != null) parsed.sort_dir = overrides.sort_dir;
 
-  const results = await listQuestions(pool, parsed);
+  const results = await listQuestions(pool, parsed, actor);
 
   return {
     saved_search: {

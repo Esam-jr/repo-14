@@ -91,7 +91,6 @@ describe("auth API", () => {
 
   test("permission-enforced endpoint blocks student and allows admin", async () => {
     const studentEmail = `student_perm_${Date.now()}@example.com`;
-    const adminEmail = `admin_perm_${Date.now()}@example.com`;
     const password = "StrongPass123!";
 
     await request(app).post("/auth/register").send({
@@ -100,20 +99,14 @@ describe("auth API", () => {
       role: "student"
     });
 
-    await request(app).post("/auth/register").send({
-      email: adminEmail,
-      password,
-      role: "admin"
-    });
-
     const studentLogin = await request(app).post("/auth/login").send({
       email: studentEmail,
       password
     });
 
     const adminLogin = await request(app).post("/auth/login").send({
-      email: adminEmail,
-      password
+      email: fixtures.adminEmail,
+      password: fixtures.adminPassword
     });
 
     const deny = await request(app)
@@ -129,17 +122,10 @@ describe("auth API", () => {
   });
 
   test("scoped permission endpoint enforces cohort scope", async () => {
-    const facultyEmail = `faculty_scope_${Date.now()}@example.com`;
-    const password = "StrongPass123!";
-
-    await request(app).post("/auth/register").send({
-      email: facultyEmail,
-      password,
-      role: "faculty",
-      scopes: { cohort: ["2026"], school: ["Engineering"] }
+    const loginRes = await request(app).post("/auth/login").send({
+      email: fixtures.advisorEmail,
+      password: fixtures.advisorPassword
     });
-
-    const loginRes = await request(app).post("/auth/login").send({ email: facultyEmail, password });
     const token = loginRes.body.access_token;
 
     const allowed = await request(app)

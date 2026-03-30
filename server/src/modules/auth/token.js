@@ -1,8 +1,26 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
+const DEV_FALLBACK_SECRET = "dev_only_change_me";
+const isDev = process.env.NODE_ENV === "development";
+let warnedDevFallback = false;
+
 function getJwtSecret() {
-  return process.env.JWT_SECRET || "dev_only_change_me";
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+
+  if (isDev) {
+    if (!warnedDevFallback) {
+      process.stderr.write(
+        "[auth] JWT_SECRET is not set; using development fallback secret.\n"
+      );
+      warnedDevFallback = true;
+    }
+    return DEV_FALLBACK_SECRET;
+  }
+
+  throw new Error("JWT_SECRET is required in non-development environments");
 }
 
 function getAccessTtlSeconds() {

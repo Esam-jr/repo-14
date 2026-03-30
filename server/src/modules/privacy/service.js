@@ -329,6 +329,12 @@ async function reviewPrivacyRequest(pool, actor, requestId, decision, decisionNo
   }
 
   const request = await expireIfNeeded(pool, existing);
+  const isExpiredAtReview = new Date(request.expires_at).getTime() <= nowDate().getTime();
+
+  if (decision === "approve" && (request.status === "expired" || isExpiredAtReview)) {
+    throw new AppError(410, "expired", "Request expired.");
+  }
+
   if (request.status !== "pending") {
     throw new AppError(409, "invalid_state", `Request cannot be ${decision} from ${request.status} state.`);
   }
@@ -338,10 +344,6 @@ async function reviewPrivacyRequest(pool, actor, requestId, decision, decisionNo
     if (!target || !scopesOverlap(actor.scopes || {}, target.scopes || {})) {
       throw new AppError(403, "forbidden", "Department admin scope mismatch.");
     }
-  }
-
-  if (decision === "approve" && new Date(request.expires_at).getTime() <= nowDate().getTime()) {
-    throw new AppError(410, "expired", "Request expired.");
   }
 
   const now = nowDate().toISOString();

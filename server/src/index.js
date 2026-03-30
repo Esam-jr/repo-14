@@ -27,6 +27,22 @@ async function prepareDatabase(pool, attempts = 20, delayMs = 2000) {
 }
 
 async function start() {
+  if (process.env.NODE_ENV !== "development") {
+    if (!process.env.JWT_SECRET) {
+      process.stderr.write(
+        "Startup failure: JWT_SECRET is required when NODE_ENV is not development\n"
+      );
+      process.exit(1);
+    }
+
+    if (process.env.JWT_SECRET === "dev_only_change_me") {
+      process.stderr.write(
+        "Startup failure: JWT_SECRET must not use the development default in non-development environments\n"
+      );
+      process.exit(1);
+    }
+  }
+
   const pool = createPool();
   await prepareDatabase(pool);
 

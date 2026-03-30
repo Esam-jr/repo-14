@@ -10,6 +10,8 @@
     "up": "docker-compose up --build",
     "up:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d",
     "down": "docker-compose down -v",
+    "start:server:local": "npm --workspace server run start:local",
+    "start:client:local": "npm --workspace client run dev",
     "seed": "docker-compose run --rm server npm run seed",
     "etl": "docker-compose run --rm etl",
     "reindex": "docker-compose run --rm server npm run reindex",
