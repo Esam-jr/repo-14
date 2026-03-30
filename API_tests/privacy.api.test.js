@@ -23,6 +23,7 @@ async function resetDatabase() {
       questions,
       knowledge_points,
       tags,
+      message_templates,
       users
     RESTART IDENTITY CASCADE
   `);
@@ -206,3 +207,4 @@ describe("privacy and access workflow", () => {
     expect(after.body.user.profile.employer).toMatch(/\*\*\*/);
   });
 });
+

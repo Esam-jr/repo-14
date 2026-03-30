@@ -283,14 +283,17 @@ async function seedDatabase(pool) {
   return {
     adminEmail: "admin.fixture@cohortbridge.dev",
     adminPassword: "SeedAdmin123!",
+    adminId: Number(admin.id),
     advisorEmail: "advisor.fixture@cohortbridge.dev",
     advisorPassword: "SeedAdvisor123!",
+    advisorId: Number(advisor.id),
     alumniEmail: "alumni.fixture@cohortbridge.dev",
     alumniPassword: "SeedAlumni123!",
     studentEmail: "student.fixture@cohortbridge.dev",
     studentPassword: "SeedStudent123!",
-    alumniId: alumni.id,
-    questionId
+    studentId: Number(student.id),
+    alumniId: Number(alumni.id),
+    questionId: Number(questionId)
   };
 }
 

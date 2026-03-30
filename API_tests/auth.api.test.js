@@ -23,6 +23,7 @@ async function resetDatabase() {
       questions,
       knowledge_points,
       tags,
+      message_templates,
       users
     RESTART IDENTITY CASCADE
   `);
@@ -153,4 +154,5 @@ describe("auth API", () => {
     expect(denied.status).toBe(403);
   });
 });
+
 

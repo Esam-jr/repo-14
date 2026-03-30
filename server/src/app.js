@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser");
 const { createAuthRouter } = require("./modules/auth/routes");
 const { createQuestionRouter } = require("./modules/questions/routes");
 const { createPrivacyRouter } = require("./modules/privacy/routes");
+const { createMessagingRouter } = require("./modules/messaging/routes");
 const { errorResponse } = require("./errors");
 
 function createApp(pool) {
@@ -23,6 +24,7 @@ function createApp(pool) {
   app.use("/auth", createAuthRouter(pool));
   app.use(createQuestionRouter(pool));
   app.use(createPrivacyRouter(pool));
+  app.use(createMessagingRouter(pool));
 
   app.use(errorResponse);
 
