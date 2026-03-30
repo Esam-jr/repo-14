@@ -25,6 +25,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_me_before_production}
       ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://client:3000}
       SEARCH_ENGINE: ${SEARCH_ENGINE:-postgres}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_API_KEY: ${MEILI_API_KEY:-}
@@ -47,6 +48,17 @@ services:
       - "3000"
     ports:
       - "3000:3000"
+
+  etl:
+    build: ./etl
+    profiles:
+      - etl
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-cohortbridge}:${POSTGRES_PASSWORD:-cohortbridge}@db:5432/${POSTGRES_DB:-cohortbridge}
+      ETL_SIMILARITY_THRESHOLD: ${ETL_SIMILARITY_THRESHOLD:-0.78}
+    depends_on:
+      db:
+        condition: service_healthy
 
   meilisearch:
     image: getmeili/meilisearch:v1.12

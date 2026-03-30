@@ -1,0 +1,12 @@
+{
+  "name": "cohortbridge-etl",
+  "version": "1.0.0",
+  "private": true,
+  "main": "cleanse.js",
+  "scripts": {
+    "start": "node cleanse.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

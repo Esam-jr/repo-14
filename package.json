@@ -11,11 +11,13 @@
     "up:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d",
     "down": "docker-compose down -v",
     "seed": "docker-compose run --rm server npm run seed",
+    "etl": "docker-compose run --rm etl",
     "reindex": "docker-compose run --rm server npm run reindex",
     "benchmark:search": "docker-compose run --rm server npm run benchmark:search",
     "test": "jest --runInBand",
     "test:unit": "jest unit_tests --runInBand",
     "test:api": "jest API_tests --runInBand",
+    "test:etl": "jest etl/tests --runInBand",
     "test:frontend:component": "npm --workspace client run test:component",
     "test:frontend:e2e": "npm --workspace client run test:e2e"
   },

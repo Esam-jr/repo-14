@@ -91,6 +91,28 @@ Run representative benchmark queries:
 docker-compose run --rm server npm run benchmark:search
 ```
 
+## ETL
+Run the cleanse pipeline ad-hoc:
+
+```bash
+docker-compose run --rm etl
+```
+
+If your Compose version requires explicit profile activation:
+
+```bash
+docker-compose --profile etl run --rm etl
+```
+
+Or:
+
+```bash
+npm run etl
+```
+
+ETL docs:
+- `docs/etl.md`
+
 ## Notes
 - No secrets are committed; use `.env` locally.
 - `.env.example` documents required environment variables.
