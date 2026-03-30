@@ -1,16 +1,26 @@
-﻿const express = require("express");
+const express = require("express");
+const cookieParser = require("cookie-parser");
+const { createAuthRouter } = require("./modules/auth/routes");
+const { errorResponse } = require("./errors");
 
 function createApp(pool) {
   const app = express();
+
+  app.use(express.json({ limit: "1mb" }));
+  app.use(cookieParser());
 
   app.get("/health", async (_req, res) => {
     try {
       await pool.query("SELECT 1");
       res.status(200).json({ status: "ok" });
-    } catch (error) {
+    } catch (_error) {
       res.status(503).json({ status: "degraded", error: "database_unavailable" });
     }
   });
+
+  app.use("/auth", createAuthRouter(pool));
+
+  app.use(errorResponse);
 
   return app;
 }
