@@ -126,3 +126,9 @@ Role model:
 ## Notes
 - No secrets are committed; use `.env` locally.
 - `.env.example` documents required environment variables.
+
+## Frontend UI Note
+- Global design tokens and utility classes are in [App.svelte](C:\Users\hp\Desktop\My projects\TASK-14\repo\client\src\App.svelte) under `:root` and global `.container/.card/.row/.muted/.visually-hidden`.
+- Reusable micro UI pieces are in:
+  - [Card.svelte](C:\Users\hp\Desktop\My projects\TASK-14\repo\client\src\components\Card.svelte)
+  - [Chip.svelte](C:\Users\hp\Desktop\My projects\TASK-14\repo\client\src\components\Chip.svelte)
