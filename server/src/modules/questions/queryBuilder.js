@@ -1,9 +1,23 @@
-function buildQuestionWhere(filters, values) {
+function buildQuestionWhere(filters, values, options = {}) {
   const clauses = [];
 
   if (filters.q) {
-    values.push(filters.q);
-    clauses.push(`to_tsvector('english', COALESCE(q.title, '') || ' ' || COALESCE(q.body, '')) @@ plainto_tsquery('english', $${values.length})`);
+    if (options.searchIds) {
+      if (options.searchIds.length === 0) {
+        clauses.push("FALSE");
+      } else {
+        values.push(options.searchIds);
+        clauses.push(`q.id = ANY($${values.length}::bigint[])`);
+      }
+    } else {
+      values.push(filters.q);
+      const idx = values.length;
+      clauses.push(`(
+        q.search_vector @@ plainto_tsquery('english', $${idx})
+        OR similarity(q.title, $${idx}) > 0.15
+        OR similarity(q.body, $${idx}) > 0.15
+      )`);
+    }
   }
 
   if (filters.question_type) {

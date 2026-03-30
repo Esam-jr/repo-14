@@ -1,5 +1,13 @@
 const { AppError } = require("../../errors");
+const { authInfo } = require("../../logger");
 const { buildQuestionWhere } = require("./queryBuilder");
+const {
+  resolveQuestionIds,
+  indexQuestionDocument,
+  deleteQuestionDocument,
+  reindexAllQuestions,
+  getSearchEngine
+} = require("../../services/searchService");
 
 const QUESTION_SORT_COLUMN_MAP = {
   created_at: "q.created_at",
@@ -15,6 +23,10 @@ const RESOURCE_SORT_COLUMN_MAP = {
   title: "r.title",
   resource_type: "r.resource_type"
 };
+
+function nowMs() {
+  return Number(process.hrtime.bigint() / 1000000n);
+}
 
 function normalizeQuestionRow(row) {
   return {
@@ -145,8 +157,11 @@ async function setQuestionTags(pool, questionId, tags) {
 }
 
 async function listQuestions(pool, params) {
+  const start = nowMs();
   const values = [];
-  const where = buildQuestionWhere(params.filters, values);
+
+  const searchIds = await resolveQuestionIds(pool, params.filters);
+  const where = buildQuestionWhere(params.filters, values, { searchIds });
 
   const countResult = await pool.query(
     `SELECT COUNT(*)::bigint AS total
@@ -193,6 +208,13 @@ async function listQuestions(pool, params) {
     LIMIT ${limitParam} OFFSET ${offsetParam}`,
     dataValues
   );
+
+  authInfo("questions_search", {
+    engine: getSearchEngine(),
+    q: params.filters.q || null,
+    total,
+    duration_ms: nowMs() - start
+  });
 
   return {
     items: rows.rows.map(normalizeQuestionRow),
@@ -286,6 +308,7 @@ async function createQuestion(pool, creatorId, payload) {
 
   const questionId = result.rows[0].id;
   await setQuestionTags(pool, questionId, payload.tags || []);
+  await indexQuestionDocument(pool, questionId);
   return getQuestionById(pool, questionId);
 }
 
@@ -350,6 +373,7 @@ async function patchQuestion(pool, questionId, actor, payload) {
     await setQuestionTags(pool, questionId, payload.tags);
   }
 
+  await indexQuestionDocument(pool, questionId);
   return getQuestionById(pool, questionId);
 }
 
@@ -369,6 +393,7 @@ async function deleteQuestion(pool, questionId, actor) {
   }
 
   await pool.query("DELETE FROM questions WHERE id = $1", [questionId]);
+  await deleteQuestionDocument(questionId);
 }
 
 async function listResources(pool, params) {
@@ -590,6 +615,10 @@ async function applySavedSearch(pool, userId, searchId, overrides = {}) {
   };
 }
 
+async function runAdminReindex(pool) {
+  return reindexAllQuestions(pool);
+}
+
 module.exports = {
   listQuestions,
   getQuestionById,
@@ -603,5 +632,6 @@ module.exports = {
   deleteResource,
   createSavedSearch,
   listSavedSearches,
-  applySavedSearch
+  applySavedSearch,
+  runAdminReindex
 };

@@ -231,4 +231,23 @@ describe("questions + saved searches API", () => {
     expect(patch.status).toBe(200);
     expect(patch.body.resource.title).toBe("DB Transactions Guide v2");
   });
+
+  test("admin reindex endpoint is role-protected", async () => {
+    const studentToken = await login(fixtures.studentEmail, fixtures.studentPassword);
+    const adminToken = await login(fixtures.adminEmail, fixtures.adminPassword);
+
+    const deny = await request(app)
+      .post("/admin/reindex")
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    expect(deny.status).toBe(403);
+
+    const allow = await request(app)
+      .post("/admin/reindex")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(allow.status).toBe(200);
+    expect(allow.body.ok).toBe(true);
+    expect(allow.body.result).toBeDefined();
+  });
 });

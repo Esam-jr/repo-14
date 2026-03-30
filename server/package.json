@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "migrate": "node scripts/runMigrations.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "reindex": "node scripts/reindex.js",
+    "benchmark:search": "node scripts/benchmarkSearch.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -68,6 +68,22 @@ Seed sample data:
 docker-compose run --rm server npm run seed
 ```
 
+## Search Engine
+- `SEARCH_ENGINE=postgres` uses Postgres full-text + trigram search.
+- `SEARCH_ENGINE=meilisearch` uses Meilisearch with automatic fallback to Postgres if unavailable.
+
+Reindex all question documents:
+
+```bash
+docker-compose run --rm server npm run reindex
+```
+
+Run representative benchmark queries:
+
+```bash
+docker-compose run --rm server npm run benchmark:search
+```
+
 ## Notes
 - No secrets are committed; use `.env` locally.
 - `.env.example` documents required environment variables.

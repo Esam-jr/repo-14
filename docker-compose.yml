@@ -25,6 +25,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_me_before_production}
       ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      SEARCH_ENGINE: ${SEARCH_ENGINE:-postgres}
+      MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
+      MEILI_API_KEY: ${MEILI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

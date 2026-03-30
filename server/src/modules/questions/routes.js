@@ -1,6 +1,6 @@
 const express = require("express");
 const { AppError } = require("../../errors");
-const { requireAuth } = require("../auth/middleware");
+const { requireAuth, requireRole } = require("../auth/middleware");
 const {
   parseListQuery,
   parseResourceListQuery,
@@ -21,7 +21,8 @@ const {
   deleteResource,
   createSavedSearch,
   listSavedSearches,
-  applySavedSearch
+  applySavedSearch,
+  runAdminReindex
 } = require("./service");
 
 function asyncHandler(fn) {
@@ -123,6 +124,11 @@ function createQuestionRouter(pool) {
     if (body.sort_dir !== undefined) overrides.sort_dir = parsed.sort_dir;
     const results = await applySavedSearch(pool, req.auth.userId, id, overrides);
     res.status(200).json(results);
+  }));
+
+  router.post("/admin/reindex", requireAuth, requireRole("admin"), asyncHandler(async (_req, res) => {
+    const result = await runAdminReindex(pool);
+    res.status(200).json({ ok: true, result });
   }));
 
   return router;
