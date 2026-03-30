@@ -1,0 +1,16 @@
+{
+  "name": "cohortbridge-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "svelte": "^4.2.19",
+    "vite": "^5.4.12"
+  }
+}

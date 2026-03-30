@@ -1,0 +1,64 @@
+﻿version: "3.9"
+
+services:
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cohortbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-cohortbridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cohortbridge}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cohortbridge} -d ${POSTGRES_DB:-cohortbridge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build: ./server
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-cohortbridge}:${POSTGRES_PASSWORD:-cohortbridge}@db:5432/${POSTGRES_DB:-cohortbridge}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "4000"
+    ports:
+      - "4000:4000"
+
+  client:
+    build: ./client
+    environment:
+      PORT: 3000
+      HOST: 0.0.0.0
+    depends_on:
+      - server
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    profiles:
+      - meilisearch
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+
+  adminer:
+    image: adminer:4
+    profiles:
+      - adminer
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+
+volumes:
+  db_data:

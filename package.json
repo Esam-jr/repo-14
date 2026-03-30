@@ -1,0 +1,21 @@
+﻿{
+  "name": "cohortbridge",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "up": "docker-compose up --build",
+    "up:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d",
+    "down": "docker-compose down -v",
+    "test": "jest --runInBand",
+    "test:unit": "jest unit_tests --runInBand",
+    "test:api": "jest API_tests --runInBand"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.1.1"
+  }
+}

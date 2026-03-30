@@ -1,0 +1,15 @@
+﻿version: "3.9"
+
+services:
+  server:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  client:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  db:
+    restart: unless-stopped
