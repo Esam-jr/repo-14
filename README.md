@@ -65,7 +65,7 @@ docker-compose run --rm server npm run migrate
 Seed sample data:
 
 ```bash
-docker-compose exec db psql -U "${POSTGRES_USER:-cohortbridge}" -d "${POSTGRES_DB:-cohortbridge}" -c "INSERT INTO cohorts (name) VALUES ('Founding Cohort') ON CONFLICT DO NOTHING;"
+docker-compose run --rm server npm run seed
 ```
 
 ## Notes

@@ -1,25 +1,45 @@
 const request = require("supertest");
 const { createPool } = require("../server/src/db");
 const { runMigrations } = require("../server/src/migrate");
+const { seedDatabase } = require("../server/src/seed");
 const { createApp } = require("../server/src/app");
 
 let pool;
 let app;
+let fixtures;
+
+async function resetDatabase() {
+  await pool.query(`
+    TRUNCATE TABLE
+      refresh_tokens,
+      question_tags,
+      messages,
+      notifications,
+      privacy_requests,
+      saved_searches,
+      audit_logs,
+      resources,
+      questions,
+      knowledge_points,
+      tags,
+      users
+    RESTART IDENTITY CASCADE
+  `);
+}
 
 beforeAll(async () => {
   process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://cohortbridge:cohortbridge@localhost:5432/cohortbridge";
   process.env.JWT_SECRET = process.env.JWT_SECRET || "test_secret";
   pool = createPool();
   await runMigrations(pool);
-  await pool.query("DELETE FROM refresh_tokens");
-  await pool.query("DELETE FROM users");
+  await resetDatabase();
+  fixtures = await seedDatabase(pool);
   app = createApp(pool);
 });
 
 afterAll(async () => {
   if (pool) {
-    await pool.query("DELETE FROM refresh_tokens");
-    await pool.query("DELETE FROM users");
+    await resetDatabase();
     await pool.end();
   }
 });
@@ -48,6 +68,23 @@ describe("auth API", () => {
     expect(loginRes.status).toBe(200);
     expect(loginRes.body.access_token).toBeTruthy();
     expect(loginRes.headers["set-cookie"]).toBeDefined();
+  });
+
+  test("seeded admin fixture can access admin endpoint", async () => {
+    const loginRes = await request(app)
+      .post("/auth/login")
+      .send({
+        email: fixtures.adminEmail,
+        password: fixtures.adminPassword
+      });
+
+    expect(loginRes.status).toBe(200);
+
+    const panelRes = await request(app)
+      .get("/auth/admin/panel")
+      .set("Authorization", `Bearer ${loginRes.body.access_token}`);
+
+    expect(panelRes.status).toBe(200);
   });
 
   test("permission-enforced endpoint blocks student and allows admin", async () => {
