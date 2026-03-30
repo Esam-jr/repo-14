@@ -10,21 +10,21 @@ vi.mock("../../client/src/lib/api", async () => {
   };
 });
 
-function makeToken(role) {
-  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(JSON.stringify({ sub: "1", role })).toString("base64url");
-  return `${header}.${payload}.`;
-}
-
 describe("Messages role visibility", () => {
   test("shows denied state for non-staff roles", () => {
-    const { getByTestId, queryByText } = render(Messages, { token: makeToken("student") });
+    const { getByTestId, queryByText } = render(Messages, {
+      token: "token",
+      auth: { userId: 1, role: "student", scopes: {} }
+    });
     expect(getByTestId("messages-denied")).toBeInTheDocument();
     expect(queryByText("Send")).not.toBeInTheDocument();
   });
 
   test("shows compose controls for staff roles", () => {
-    const { queryByTestId, getByText } = render(Messages, { token: makeToken("faculty") });
+    const { queryByTestId, getByText } = render(Messages, {
+      token: "token",
+      auth: { userId: 2, role: "faculty", scopes: {} }
+    });
     expect(queryByTestId("messages-denied")).not.toBeInTheDocument();
     expect(getByText("Send")).toBeInTheDocument();
   });

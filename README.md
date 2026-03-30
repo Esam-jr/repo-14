@@ -252,7 +252,7 @@ Role model:
 ## Notes
 - No secrets are committed; use `.env` locally.
 - `.env.example` documents required environment variables.
-- Client token storage currently uses `sessionStorage` (with legacy `localStorage` compatibility). Recommended production approach: move access/refresh handling to `HttpOnly` + `Secure` cookies to reduce XSS exposure.
+- Client token storage currently uses `sessionStorage` only. Recommended production approach: move access/refresh handling to `HttpOnly` + `Secure` cookies to reduce XSS exposure.
 - Add CSP/XSS hardening in production (for example: strict Content Security Policy, output encoding, and avoiding unsafe inline scripts).
 
 ## Frontend UI Note

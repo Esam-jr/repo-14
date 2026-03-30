@@ -110,6 +110,79 @@ describe("questions + saved searches API", () => {
     expect(list.body.items.some((q) => q.title === "Different question should not match")).toBe(false);
   });
 
+  test("supports multi-tag AND filtering server-side across pagination", async () => {
+    const token = await login(fixtures.studentEmail, fixtures.studentPassword);
+
+    const createAlpha = await request(app)
+      .post("/questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        title: "A multi-tag match",
+        body: "Has both tags",
+        question_type: "discussion",
+        difficulty: "beginner",
+        status: "open",
+        tags: ["mtag-a", "mtag-b"]
+      });
+    expect(createAlpha.status).toBe(201);
+
+    const createBravo = await request(app)
+      .post("/questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        title: "B multi-tag match",
+        body: "Also has both tags",
+        question_type: "discussion",
+        difficulty: "beginner",
+        status: "open",
+        tags: ["mtag-a", "mtag-b", "mtag-c"]
+      });
+    expect(createBravo.status).toBe(201);
+
+    const createPartial = await request(app)
+      .post("/questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        title: "C partial tag",
+        body: "Only one of the tags",
+        question_type: "discussion",
+        difficulty: "beginner",
+        status: "open",
+        tags: ["mtag-a"]
+      });
+    expect(createPartial.status).toBe(201);
+
+    const pageOne = await request(app)
+      .get("/questions")
+      .query({
+        tag: ["mtag-a", "mtag-b"],
+        sort_by: "title",
+        sort_dir: "asc",
+        page: 1,
+        per_page: 1
+      });
+
+    expect(pageOne.status).toBe(200);
+    expect(pageOne.body.pagination.total).toBe(2);
+    expect(pageOne.body.items).toHaveLength(1);
+    expect(pageOne.body.items[0].title).toBe("A multi-tag match");
+
+    const pageTwo = await request(app)
+      .get("/questions")
+      .query({
+        tag: ["mtag-a", "mtag-b"],
+        sort_by: "title",
+        sort_dir: "asc",
+        page: 2,
+        per_page: 1
+      });
+
+    expect(pageTwo.status).toBe(200);
+    expect(pageTwo.body.pagination.total).toBe(2);
+    expect(pageTwo.body.items).toHaveLength(1);
+    expect(pageTwo.body.items[0].title).toBe("B multi-tag match");
+  });
+
   test("supports sorting and per_page boundary (max 100)", async () => {
     const token = await login(fixtures.studentEmail, fixtures.studentPassword);
 
@@ -289,6 +362,12 @@ describe("questions + saved searches API", () => {
     expect(inScope.status).toBe(200);
     expect(inScope.body.items.length).toBeGreaterThan(0);
     expect(inScope.body.items.some((q) => Number(q.id) === Number(outOfScopeId))).toBe(false);
+
+    const deniedDetail = await request(app)
+      .get(`/questions/${outOfScopeId}`)
+      .set("Authorization", `Bearer ${facultyToken}`);
+
+    expect(deniedDetail.status).toBe(403);
   });
 });
 

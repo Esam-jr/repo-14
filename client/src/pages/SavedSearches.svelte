@@ -31,7 +31,9 @@
     try {
       const filters = {
         ...currentFilters,
-        tag: currentFilters.tags && currentFilters.tags[0] ? currentFilters.tags[0] : currentFilters.tag
+        tag: Array.isArray(currentFilters.tags) && currentFilters.tags.length > 0
+          ? currentFilters.tags
+          : currentFilters.tag
       };
       await apiFetch("/saved_searches", {
         method: "POST",

@@ -79,6 +79,30 @@ function applyActorScopeFilters(actor, filters) {
   return constrained;
 }
 
+function assertActorCanReadScopedRecord(actor, row, entityName) {
+  if (!actor || !SCOPED_BROWSE_ROLES.has(actor.role)) {
+    return;
+  }
+
+  const actorScopes = actor.scopes || {};
+  const hasAnyScope = SCOPED_KEYS.some((key) => normalizeScopeValues(actorScopes[key]).length > 0);
+  if (!hasAnyScope) {
+    throw new AppError(403, "forbidden", `Scoped role requires assigned scope values for ${entityName} browsing.`);
+  }
+
+  for (const key of SCOPED_KEYS) {
+    const actorValues = normalizeScopeValues(actorScopes[key]);
+    if (actorValues.length === 0) {
+      continue;
+    }
+
+    const rowValue = String(row[key] || "").trim();
+    if (!rowValue || !actorValues.includes(rowValue)) {
+      throw new AppError(403, "forbidden", `Requested ${entityName} is outside your assigned scope.`);
+    }
+  }
+}
+
 function normalizeQuestionRow(row) {
   return {
     id: row.id,
@@ -287,7 +311,7 @@ async function listQuestions(pool, params, actor = null) {
   };
 }
 
-async function getQuestionById(pool, id) {
+async function getQuestionById(pool, id, actor = null) {
   const result = await pool.query(
     `SELECT
       q.id,
@@ -317,7 +341,9 @@ async function getQuestionById(pool, id) {
     throw new AppError(404, "not_found", "Question not found.");
   }
 
-  return normalizeQuestionRow(result.rows[0]);
+  const row = result.rows[0];
+  assertActorCanReadScopedRecord(actor, row, "question");
+  return normalizeQuestionRow(row);
 }
 
 async function createQuestion(pool, creatorId, payload) {
@@ -498,7 +524,7 @@ async function listResources(pool, params, actor = null) {
   };
 }
 
-async function getResourceById(pool, id) {
+async function getResourceById(pool, id, actor = null) {
   const result = await pool.query(
     `SELECT id, creator_id, title, body, resource_type, url, school, major, class_section, cohort, metadata, created_at, updated_at
      FROM resources
@@ -510,7 +536,9 @@ async function getResourceById(pool, id) {
     throw new AppError(404, "not_found", "Resource not found.");
   }
 
-  return normalizeResourceRow(result.rows[0]);
+  const row = result.rows[0];
+  assertActorCanReadScopedRecord(actor, row, "resource");
+  return normalizeResourceRow(row);
 }
 
 async function createResource(pool, creatorId, payload) {

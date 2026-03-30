@@ -72,6 +72,30 @@ function sanitizeOptionalEnum(value, allowed, field) {
   return value;
 }
 
+function sanitizeStringArray(value, maxItemLength = 80, field = "field") {
+  if (value == null || value === "") {
+    return undefined;
+  }
+
+  const rawItems = Array.isArray(value)
+    ? value
+    : String(value).split(",");
+
+  const normalized = rawItems
+    .map((item) => sanitizeString(item, maxItemLength))
+    .filter(Boolean);
+
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  if (normalized.length > 25) {
+    throw new AppError(400, "validation_error", `${field} supports at most 25 values.`);
+  }
+
+  return Array.from(new Set(normalized));
+}
+
 function parseSort(sortByRaw, sortDirRaw, allowedSortFields) {
   const sortBy = sortByRaw ? String(sortByRaw) : "created_at";
   if (!allowedSortFields.has(sortBy)) {
@@ -100,7 +124,7 @@ function parseListQuery(query) {
       q: sanitizeString(query.q, 200),
       question_type: sanitizeString(query.question_type, 50),
       difficulty: sanitizeString(query.difficulty, 50),
-      tag: sanitizeString(query.tag, 80),
+      tag: sanitizeStringArray(query.tag, 80, "tag"),
       knowledge_point: sanitizeString(query.knowledge_point, 80),
       creator_id: creatorId,
       status: sanitizeString(query.status, 50),

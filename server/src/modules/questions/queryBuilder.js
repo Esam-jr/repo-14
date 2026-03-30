@@ -73,14 +73,18 @@ function buildQuestionWhere(filters, values, options = {}) {
   pushScopeClause("q.class_section", filters.class_section);
   pushScopeClause("q.cohort", filters.cohort);
 
-  if (filters.tag) {
+  if (filters.tag && filters.tag.length > 0) {
     values.push(filters.tag);
-    clauses.push(`EXISTS (
-      SELECT 1
+    const tagsParam = `$${values.length}`;
+    values.push(filters.tag.length);
+    const tagCountParam = `$${values.length}`;
+    clauses.push(`(
+      SELECT COUNT(DISTINCT t2.name)::int
       FROM question_tags qt2
       JOIN tags t2 ON t2.id = qt2.tag_id
-      WHERE qt2.question_id = q.id AND t2.name = $${values.length}
-    )`);
+      WHERE qt2.question_id = q.id
+        AND t2.name = ANY(${tagsParam}::text[])
+    ) = ${tagCountParam}`);
   }
 
   if (filters.knowledge_point) {

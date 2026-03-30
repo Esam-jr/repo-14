@@ -95,4 +95,92 @@ describe("scope enforcement for /questions and /resources", () => {
     expect(Array.isArray(inScope.body.items)).toBe(true);
     expect(inScope.body.items.length).toBeGreaterThan(0);
   });
+
+  test("faculty cannot fetch out-of-scope question detail and can fetch in-scope detail", async () => {
+    const adminToken = await login(fixtures.adminEmail, fixtures.adminPassword);
+    const facultyToken = await login(fixtures.advisorEmail, fixtures.advisorPassword);
+
+    const outOfScopeCreate = await request(app)
+      .post("/questions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        title: "Out-of-scope detail question",
+        body: "Should be blocked on detail fetch",
+        question_type: "discussion",
+        difficulty: "beginner",
+        status: "open",
+        school: "Business",
+        major: "Finance",
+        cohort: "2030"
+      });
+    expect(outOfScopeCreate.status).toBe(201);
+
+    const inScopeCreate = await request(app)
+      .post("/questions")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        title: "In-scope detail question",
+        body: "Should be visible to scoped faculty",
+        question_type: "discussion",
+        difficulty: "beginner",
+        status: "open",
+        school: "Engineering",
+        major: "Computer Science",
+        cohort: "2026"
+      });
+    expect(inScopeCreate.status).toBe(201);
+
+    const outOfScopeRead = await request(app)
+      .get(`/questions/${outOfScopeCreate.body.question.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`);
+    expect(outOfScopeRead.status).toBe(403);
+
+    const inScopeRead = await request(app)
+      .get(`/questions/${inScopeCreate.body.question.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`);
+    expect(inScopeRead.status).toBe(200);
+    expect(Number(inScopeRead.body.question.id)).toBe(Number(inScopeCreate.body.question.id));
+  });
+
+  test("faculty cannot fetch out-of-scope resource detail and can fetch in-scope detail", async () => {
+    const adminToken = await login(fixtures.adminEmail, fixtures.adminPassword);
+    const facultyToken = await login(fixtures.advisorEmail, fixtures.advisorPassword);
+
+    const outOfScopeCreate = await request(app)
+      .post("/resources")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        title: "Out-of-scope detail resource",
+        body: "Hidden from engineering-scoped faculty",
+        resource_type: "note",
+        school: "Business",
+        major: "Finance",
+        cohort: "2030"
+      });
+    expect(outOfScopeCreate.status).toBe(201);
+
+    const inScopeCreate = await request(app)
+      .post("/resources")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        title: "In-scope detail resource",
+        body: "Visible to engineering-scoped faculty",
+        resource_type: "note",
+        school: "Engineering",
+        major: "Computer Science",
+        cohort: "2026"
+      });
+    expect(inScopeCreate.status).toBe(201);
+
+    const outOfScopeRead = await request(app)
+      .get(`/resources/${outOfScopeCreate.body.resource.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`);
+    expect(outOfScopeRead.status).toBe(403);
+
+    const inScopeRead = await request(app)
+      .get(`/resources/${inScopeCreate.body.resource.id}`)
+      .set("Authorization", `Bearer ${facultyToken}`);
+    expect(inScopeRead.status).toBe(200);
+    expect(Number(inScopeRead.body.resource.id)).toBe(Number(inScopeCreate.body.resource.id));
+  });
 });

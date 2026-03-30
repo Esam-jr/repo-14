@@ -1,10 +1,14 @@
 <script>
+  import { onMount } from "svelte";
   import { tick } from "svelte";
   import { fade } from "svelte/transition";
-  import { decodeJwt, getStoredToken, storeToken, clearStoredToken, hasRole } from "./lib/api";
+  import { fetchVerifiedSession, getStoredToken, storeToken, clearStoredToken, hasRole } from "./lib/api";
   import Landing from "./pages/Landing.svelte";
   import QuestionsList from "./pages/QuestionsList.svelte";
   import QuestionDetail from "./pages/QuestionDetail.svelte";
+  import ResourcesList from "./pages/ResourcesList.svelte";
+  import ResourceDetail from "./pages/ResourceDetail.svelte";
+  import ShareResource from "./pages/ShareResource.svelte";
   import AskQuestion from "./pages/AskQuestion.svelte";
   import SavedSearches from "./pages/SavedSearches.svelte";
   import Messages from "./pages/Messages.svelte";
@@ -14,13 +18,26 @@
   import Auth from "./pages/Auth.svelte";
   import NotFound from "./pages/NotFound.svelte";
 
-  const protectedRoutes = ["questions", "question-detail", "ask", "saved", "messages", "notifications", "profile", "admin"];
+  const protectedRoutes = [
+    "questions",
+    "question-detail",
+    "resources",
+    "resource-detail",
+    "share-resource",
+    "ask",
+    "saved",
+    "messages",
+    "notifications",
+    "profile",
+    "admin"
+  ];
   const knownRoutes = ["landing", "auth", ...protectedRoutes];
 
   let route = "landing";
-  let routeQuestionId = "";
+  let routeEntityId = "";
   let token = getStoredToken();
-  let auth = token ? decodeJwt(token) : null;
+  let auth = null;
+  let sessionReady = false;
   let toasts = [];
   let questionsFilterState = null;
 
@@ -45,11 +62,11 @@
     return hasRole(auth, STAFF_ROLES);
   }
 
-  function setRoute(next, questionId = "") {
+  function setRoute(next, entityId = "") {
     const name = knownRoutes.includes(next) ? next : "landing";
     route = name;
-    routeQuestionId = questionId;
-    location.hash = questionId ? `${name}/${questionId}` : name;
+    routeEntityId = entityId;
+    location.hash = entityId ? `${name}/${entityId}` : name;
     menuOpen = false;
   }
 
@@ -57,12 +74,12 @@
     const raw = location.hash.replace(/^#/, "").trim();
     if (!raw) {
       route = "landing";
-      routeQuestionId = "";
+      routeEntityId = "";
       return;
     }
     const [name, maybeId] = raw.split("/");
     route = knownRoutes.includes(name) ? name : "not-found";
-    routeQuestionId = maybeId || "";
+    routeEntityId = maybeId || "";
   }
 
   async function toggleMenu() {
@@ -73,10 +90,39 @@
     }
   }
 
-  function onLoggedIn(event) {
+  async function refreshVerifiedAuth(nextToken, options = {}) {
+    const silent = options.silent === true;
+    if (!nextToken) {
+      auth = null;
+      sessionReady = true;
+      return;
+    }
+
+    try {
+      const verified = await fetchVerifiedSession(nextToken);
+      if (!verified) {
+        throw new Error("Unable to verify authenticated session.");
+      }
+      auth = verified;
+      sessionReady = true;
+    } catch (_e) {
+      token = "";
+      auth = null;
+      clearStoredToken();
+      sessionReady = true;
+      if (!silent) {
+        pushToast("info", "Session expired. Please log in again.");
+      }
+      if (protectedRoutes.includes(route)) {
+        setRoute("auth");
+      }
+    }
+  }
+
+  async function onLoggedIn(event) {
     token = event.detail.accessToken;
-    auth = decodeJwt(token);
     storeToken(token);
+    await refreshVerifiedAuth(token, { silent: true });
     pushToast("success", "Welcome back.");
     setRoute("landing");
   }
@@ -93,20 +139,28 @@
     setRoute("question-detail", String(event.detail.id));
   }
 
-  $: if (!token && protectedRoutes.includes(route)) {
+  function onResourceOpen(event) {
+    setRoute("resource-detail", String(event.detail.id));
+  }
+
+  $: if (sessionReady && !auth && protectedRoutes.includes(route)) {
     setRoute("auth");
   }
 
-  $: if (route === "admin" && !isAdminConsoleAllowed()) {
+  $: if (sessionReady && route === "admin" && !isAdminConsoleAllowed()) {
     // Keep route so denied-state UI can be shown.
   }
 
-  $: if (route === "messages" && token && !isMessagingAllowed()) {
+  $: if (sessionReady && route === "messages" && auth && !isMessagingAllowed()) {
     // Keep route so denied-state UI can be shown.
   }
 
-  parseHash();
-  window.addEventListener("hashchange", parseHash);
+  onMount(() => {
+    parseHash();
+    window.addEventListener("hashchange", parseHash);
+    refreshVerifiedAuth(token, { silent: true });
+    return () => window.removeEventListener("hashchange", parseHash);
+  });
 </script>
 
 <main class="container">
@@ -128,15 +182,17 @@
     <nav aria-label="Primary">
       <ul id="primary-navigation" class:open={menuOpen}>
         <li><button data-testid="nav-landing" bind:this={firstNavControl} on:click={() => setRoute("landing")}>Landing</button></li>
-        <li><button data-testid="nav-questions" on:click={() => setRoute("questions")} disabled={!token}>Questions</button></li>
-        <li><button data-testid="nav-ask" on:click={() => setRoute("ask")} disabled={!token}>Ask</button></li>
-        <li><button data-testid="nav-saved" on:click={() => setRoute("saved")} disabled={!token}>Saved</button></li>
-        <li><button data-testid="nav-messages" on:click={() => setRoute("messages")} disabled={!token || !isMessagingAllowed()}>Messages</button></li>
-        <li><button data-testid="nav-notifications" on:click={() => setRoute("notifications")} disabled={!token}>Notifications</button></li>
-        <li><button data-testid="nav-profile" on:click={() => setRoute("profile")} disabled={!token}>Profile</button></li>
-        <li><button data-testid="nav-admin" on:click={() => setRoute("admin")} disabled={!token || !isAdminConsoleAllowed()}>Admin</button></li>
+        <li><button data-testid="nav-questions" on:click={() => setRoute("questions")} disabled={!auth}>Questions</button></li>
+        <li><button data-testid="nav-resources" on:click={() => setRoute("resources")} disabled={!auth}>Resources</button></li>
+        <li><button data-testid="nav-share-resource" on:click={() => setRoute("share-resource")} disabled={!auth}>Share Resource</button></li>
+        <li><button data-testid="nav-ask" on:click={() => setRoute("ask")} disabled={!auth}>Ask</button></li>
+        <li><button data-testid="nav-saved" on:click={() => setRoute("saved")} disabled={!auth}>Saved</button></li>
+        <li><button data-testid="nav-messages" on:click={() => setRoute("messages")} disabled={!auth || !isMessagingAllowed()}>Messages</button></li>
+        <li><button data-testid="nav-notifications" on:click={() => setRoute("notifications")} disabled={!auth}>Notifications</button></li>
+        <li><button data-testid="nav-profile" on:click={() => setRoute("profile")} disabled={!auth}>Profile</button></li>
+        <li><button data-testid="nav-admin" on:click={() => setRoute("admin")} disabled={!auth || !isAdminConsoleAllowed()}>Admin</button></li>
         <li>
-          {#if !token}
+          {#if !auth}
             <button data-testid="nav-auth" class="primary" on:click={() => setRoute("auth")}>Login / Register</button>
           {:else}
             <button data-testid="nav-auth" on:click={logout}>Logout</button>
@@ -153,16 +209,22 @@
   {:else if route === "questions"}
     <QuestionsList token={token} onUseFilters={(s) => (questionsFilterState = s)} on:openQuestion={onQuestionOpen} />
   {:else if route === "question-detail"}
-    <QuestionDetail questionId={routeQuestionId} />
+    <QuestionDetail token={token} questionId={routeEntityId} />
+  {:else if route === "resources"}
+    <ResourcesList token={token} on:openResource={onResourceOpen} />
+  {:else if route === "resource-detail"}
+    <ResourceDetail token={token} resourceId={routeEntityId} />
+  {:else if route === "share-resource"}
+    <ShareResource token={token} />
   {:else if route === "ask"}
     <AskQuestion token={token} />
   {:else if route === "saved"}
     <SavedSearches token={token} currentFilters={questionsFilterState} />
   {:else if route === "messages"}
-    {#if !token}
+    {#if !auth}
       <Auth on:loggedIn={onLoggedIn} />
     {:else if isMessagingAllowed()}
-      <Messages token={token} />
+      <Messages token={token} auth={auth} />
     {:else}
       <section class="card denied" data-testid="denied-messages">
         <h2>Access Restricted</h2>
@@ -176,12 +238,12 @@
   {:else if route === "notifications"}
     <Notifications token={token} />
   {:else if route === "profile"}
-    <Profile token={token} />
+    <Profile token={token} auth={auth} />
   {:else if route === "admin"}
-    {#if !token}
+    {#if !auth}
       <Auth on:loggedIn={onLoggedIn} />
     {:else if isAdminConsoleAllowed()}
-      <AdminConsole token={token} />
+      <AdminConsole token={token} auth={auth} />
     {:else}
       <section class="card denied" data-testid="denied-admin">
         <h2>Access Restricted</h2>

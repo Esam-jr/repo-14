@@ -1,8 +1,9 @@
 <script>
-  import { apiFetch, decodeJwt } from "../lib/api";
+  import { apiFetch } from "../lib/api";
   import { redactedValue } from "../lib/redaction";
 
   export let token = "";
+  export let auth = null;
 
   let loading = false;
   let error = "";
@@ -17,11 +18,6 @@
   let requestForm = { target_user_id: "", fields_requested: "email", reason: "" };
   let requestInfo = "";
 
-  function currentUserId() {
-    const payload = decodeJwt(token);
-    return payload && payload.sub ? Number(payload.sub) : null;
-  }
-
   function updatePreview() {
     if (!user) return { phone: "", email: "", employer: "" };
     const profile = user.profile || {};
@@ -35,7 +31,7 @@
   $: preview = updatePreview();
 
   async function loadProfile() {
-    const id = currentUserId();
+    const id = auth && auth.userId ? Number(auth.userId) : null;
     if (!id || !token) return;
     loading = true;
     error = "";
@@ -51,7 +47,7 @@
   }
 
   async function saveVisibility() {
-    const id = currentUserId();
+    const id = auth && auth.userId ? Number(auth.userId) : null;
     if (!id || !token) return;
     loading = true;
     error = "";
@@ -85,7 +81,7 @@
     }
   }
 
-  $: if (token) loadProfile();
+  $: if (token && auth && auth.userId) loadProfile();
 </script>
 
 <section>

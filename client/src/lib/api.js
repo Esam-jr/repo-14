@@ -30,21 +30,19 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
-export function decodeJwt(token) {
+export async function fetchVerifiedSession(token) {
   if (!token) return null;
-  try {
-    const payload = token.split(".")[1];
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(
-      atob(normalized)
-        .split("")
-        .map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
-        .join("")
-    );
-    return JSON.parse(json);
-  } catch (_e) {
+  const data = await apiFetch("/auth/me", { token });
+  const user = data && data.user ? data.user : null;
+  if (!user || !user.id || !user.role) {
     return null;
   }
+  return {
+    userId: Number(user.id),
+    role: user.role,
+    scopes: user.scopes || {},
+    email: user.email || ""
+  };
 }
 
 function safeGetStorageValue(storage, key) {
@@ -72,25 +70,19 @@ function safeRemoveStorageValue(storage, key) {
 }
 
 export function getStoredToken() {
-  const sessionValue = safeGetStorageValue(sessionStorage, "cohortbridge_token");
-  if (sessionValue) {
-    return sessionValue;
-  }
-  // Backward compatibility with older localStorage sessions.
-  return safeGetStorageValue(localStorage, "cohortbridge_token") || "";
+  return safeGetStorageValue(sessionStorage, "cohortbridge_token") || "";
 }
 
 export function storeToken(token) {
-  // Prefer sessionStorage to reduce persistence on shared devices.
+  // Keep access token in session scope only; avoid localStorage persistence.
   // Security note: production-grade auth should use HttpOnly secure cookies
   // for token transport/storage to reduce XSS token exfiltration risk.
   safeSetStorageValue(sessionStorage, "cohortbridge_token", token);
-  // Keep legacy localStorage mirror for compatibility during transition.
-  safeSetStorageValue(localStorage, "cohortbridge_token", token);
 }
 
 export function clearStoredToken() {
   safeRemoveStorageValue(sessionStorage, "cohortbridge_token");
+  // Defensive cleanup for older clients that may have persisted this key.
   safeRemoveStorageValue(localStorage, "cohortbridge_token");
 }
 

@@ -3,7 +3,6 @@
   import { createEventDispatcher } from "svelte";
   import { apiFetch } from "../lib/api";
   import Card from "../components/Card.svelte";
-  import Chip from "../components/Chip.svelte";
 
   export let token = "";
   export let onUseFilters = null;
@@ -19,17 +18,13 @@
 
   let filters = savedState || {
     q: "",
-    question_type: "",
-    difficulty: "",
-    tags: [],
-    tagInput: "",
-    knowledge_point: "",
+    resource_type: "",
     creator_id: "",
-    status: "",
     start_date: "",
     end_date: "",
     school: "",
     major: "",
+    class_section: "",
     cohort: "",
     sort_by: "created_at",
     sort_dir: "desc",
@@ -37,33 +32,17 @@
     per_page: 25
   };
 
-  function parseTagsFromInput() {
-    const parsed = filters.tagInput
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-    filters.tags = Array.from(new Set(parsed));
-  }
-
-  function normalizeTagsToInput() {
-    filters.tagInput = (filters.tags || []).join(", ");
-  }
-
   function buildQuery() {
-    parseTagsFromInput();
     const q = new URLSearchParams();
-
     const mapping = {
       q: filters.q,
-      question_type: filters.question_type,
-      difficulty: filters.difficulty,
-      knowledge_point: filters.knowledge_point,
+      resource_type: filters.resource_type,
       creator_id: filters.creator_id,
-      status: filters.status,
       start_date: filters.start_date,
       end_date: filters.end_date,
       school: filters.school,
       major: filters.major,
+      class_section: filters.class_section,
       cohort: filters.cohort,
       sort_by: filters.sort_by,
       sort_dir: filters.sort_dir,
@@ -74,10 +53,6 @@
     Object.entries(mapping).forEach(([k, v]) => {
       if (v) q.set(k, v);
     });
-
-    if (filters.tags.length > 0) {
-      filters.tags.forEach((tag) => q.append("tag", tag));
-    }
     return q;
   }
 
@@ -86,9 +61,8 @@
     error = "";
     try {
       const query = buildQuery();
-      const data = await apiFetch(`/questions?${query.toString()}`, { token });
-      result = data;
-      if (onUseFilters) onUseFilters({ ...filters, tags: [...filters.tags] });
+      result = await apiFetch(`/resources?${query.toString()}`, { token });
+      if (onUseFilters) onUseFilters({ ...filters });
     } catch (e) {
       error = e.message;
     } finally {
@@ -98,20 +72,30 @@
 
   function resetFilters() {
     filters = {
-      q: "", question_type: "", difficulty: "", tags: [], tagInput: "", knowledge_point: "",
-      creator_id: "", status: "", start_date: "", end_date: "", school: "", major: "", cohort: "",
-      sort_by: "created_at", sort_dir: "desc", page: 1, per_page: 25
+      q: "",
+      resource_type: "",
+      creator_id: "",
+      start_date: "",
+      end_date: "",
+      school: "",
+      major: "",
+      class_section: "",
+      cohort: "",
+      sort_by: "created_at",
+      sort_dir: "desc",
+      page: 1,
+      per_page: 25
     };
     fetchList();
   }
 
-  function openQuestion(id) {
-    dispatch("openQuestion", { id });
+  function openResource(id) {
+    dispatch("openResource", { id });
   }
 
   function excerpt(value) {
     const text = String(value || "").trim();
-    if (!text) return "No description provided.";
+    if (!text) return "No summary provided.";
     return text.length > 110 ? `${text.slice(0, 110)}...` : text;
   }
 
@@ -120,17 +104,6 @@
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return "-";
     return d.toISOString().slice(0, 10);
-  }
-
-  function removeTag(tag) {
-    filters.tags = filters.tags.filter((x) => x !== tag);
-    normalizeTagsToInput();
-    fetchList();
-  }
-
-  function onTagInputBlur() {
-    parseTagsFromInput();
-    normalizeTagsToInput();
   }
 
   function queueKeywordSearch(value) {
@@ -147,8 +120,8 @@
   $: queueKeywordSearch(filters.q);
 </script>
 
-<section class="card">
-  <h2>Questions List</h2>
+<section class="card" data-testid="resources-list-page">
+  <h2>Resources</h2>
 
   <div class="filter-shell">
     <div class="top-grid">
@@ -158,13 +131,13 @@
       </label>
 
       <label>
-        <span class="visually-hidden">Question type</span>
-        <input placeholder="question_type" bind:value={filters.question_type} />
+        <span class="visually-hidden">Resource type</span>
+        <input placeholder="resource_type" bind:value={filters.resource_type} />
       </label>
 
       <label>
-        <span class="visually-hidden">Difficulty</span>
-        <input placeholder="difficulty" bind:value={filters.difficulty} />
+        <span class="visually-hidden">Creator ID</span>
+        <input placeholder="creator_id" bind:value={filters.creator_id} />
       </label>
 
       <div class="row top-actions">
@@ -172,7 +145,7 @@
           class="secondary"
           on:click={() => (showAdvanced = !showAdvanced)}
           aria-expanded={showAdvanced}
-          aria-controls="advanced-filters-panel"
+          aria-controls="advanced-resource-filters"
         >
           Advanced filters
         </button>
@@ -182,23 +155,19 @@
     </div>
 
     {#if showAdvanced}
-      <div id="advanced-filters-panel" class="advanced-panel" transition:slide={{ duration: 170 }}>
+      <div id="advanced-resource-filters" class="advanced-panel" transition:slide={{ duration: 170 }}>
         <div class="advanced-grid">
-          <input placeholder="knowledge_point" bind:value={filters.knowledge_point} />
-          <input placeholder="creator" bind:value={filters.creator_id} />
-          <input placeholder="status" bind:value={filters.status} />
           <input type="date" bind:value={filters.start_date} />
           <input type="date" bind:value={filters.end_date} />
           <input placeholder="school" bind:value={filters.school} />
           <input placeholder="major" bind:value={filters.major} />
+          <input placeholder="class_section" bind:value={filters.class_section} />
           <input placeholder="cohort" bind:value={filters.cohort} />
-          <input placeholder="tags (a,b,c)" bind:value={filters.tagInput} on:blur={onTagInputBlur} />
           <select bind:value={filters.sort_by}>
             <option value="created_at">created_at</option>
             <option value="updated_at">updated_at</option>
             <option value="title">title</option>
-            <option value="status">status</option>
-            <option value="difficulty">difficulty</option>
+            <option value="resource_type">resource_type</option>
           </select>
           <select bind:value={filters.sort_dir}>
             <option value="desc">desc</option>
@@ -209,12 +178,6 @@
         </div>
       </div>
     {/if}
-
-    <div class="row chips-row">
-      {#each filters.tags as tag}
-        <Chip text={tag} removable={true} onRemove={removeTag} />
-      {/each}
-    </div>
   </div>
 
   <div class="row count-row">
@@ -237,20 +200,15 @@
     <div class="result-grid">
       {#each result.items as item}
         <Card>
-          <div class="question-card">
+          <div class="resource-card">
             <div class="row title-row">
               <h3>{item.title}</h3>
-              <button class="secondary" on:click={() => openQuestion(item.id)}>Open</button>
+              <button class="secondary" on:click={() => openResource(item.id)}>Open</button>
             </div>
             <p class="muted">{excerpt(item.body)}</p>
-            <div class="row">
-              {#each (item.tags || []) as tag}
-                <Chip text={tag} />
-              {/each}
-            </div>
             <div class="meta-row muted">
-              <span>Status: {item.status || "-"}</span>
-              <span>Difficulty: {item.difficulty || "-"}</span>
+              <span>Type: {item.resource_type || "-"}</span>
+              <span>Cohort: {item.cohort || "-"}</span>
               <span>Date: {toDate(item.created_at)}</span>
             </div>
           </div>
@@ -295,10 +253,6 @@
     gap: var(--space-2);
   }
 
-  .chips-row {
-    min-height: 1.75rem;
-  }
-
   .count-row {
     justify-content: space-between;
     margin-bottom: var(--space-2);
@@ -310,7 +264,7 @@
     gap: var(--space-3);
   }
 
-  .question-card h3 {
+  .resource-card h3 {
     margin: 0;
     font-size: 1.03rem;
   }

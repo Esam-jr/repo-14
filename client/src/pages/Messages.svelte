@@ -1,6 +1,7 @@
 <script>
-  import { apiFetch, decodeJwt, hasRole } from "../lib/api";
+  import { apiFetch, hasRole } from "../lib/api";
   export let token = "";
+  export let auth = null;
 
   let templates = [];
   let loading = false;
@@ -20,11 +21,6 @@
     is_critical: false
   };
 
-  function currentAuth() {
-    return decodeJwt(token);
-  }
-
-  $: auth = currentAuth();
   $: canCompose = hasRole(auth, ["faculty", "mentor", "admin"]);
 
   function parseVariables() {

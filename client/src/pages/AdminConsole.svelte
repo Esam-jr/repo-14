@@ -1,7 +1,8 @@
 <script>
-  import { apiFetch, decodeJwt } from "../lib/api";
+  import { apiFetch } from "../lib/api";
 
   export let token = "";
+  export let auth = null;
 
   let loading = false;
   let error = "";
@@ -14,12 +15,7 @@
   let exportType = "users";
   let exportStatus = "";
 
-  function role() {
-    const payload = decodeJwt(token);
-    return payload && payload.role ? payload.role : "";
-  }
-
-  $: currentRole = role();
+  $: currentRole = auth && auth.role ? auth.role : "";
   $: allowed = ["admin", "faculty", "mentor"].includes(currentRole);
   $: canManageUsers = currentRole === "admin";
 

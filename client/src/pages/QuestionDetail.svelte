@@ -2,18 +2,19 @@
   import { onMount } from "svelte";
   import { apiFetch } from "../lib/api";
 
+  export let token = "";
   export let questionId = "";
   let loading = false;
   let error = "";
   let question = null;
 
   async function load() {
-    if (!questionId) return;
+    if (!questionId || !token) return;
     loading = true;
     error = "";
     question = null;
     try {
-      const data = await apiFetch(`/questions/${questionId}`);
+      const data = await apiFetch(`/questions/${questionId}`, { token });
       question = data.question;
     } catch (e) {
       error = e.message;
@@ -23,7 +24,7 @@
   }
 
   onMount(load);
-  $: if (questionId) load();
+  $: if (questionId && token) load();
 </script>
 
 <section>

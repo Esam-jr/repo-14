@@ -52,9 +52,9 @@ function createQuestionRouter(pool) {
     res.status(201).json({ question });
   }));
 
-  router.get("/questions/:id", asyncHandler(async (req, res) => {
+  router.get("/questions/:id", requireAuth, asyncHandler(async (req, res) => {
     const id = parseId(req.params.id, "id");
-    const question = await getQuestionById(pool, id);
+    const question = await getQuestionById(pool, id, req.auth);
     res.status(200).json({ question });
   }));
 
@@ -83,9 +83,9 @@ function createQuestionRouter(pool) {
     res.status(201).json({ resource });
   }));
 
-  router.get("/resources/:id", asyncHandler(async (req, res) => {
+  router.get("/resources/:id", requireAuth, asyncHandler(async (req, res) => {
     const id = parseId(req.params.id, "id");
-    const resource = await getResourceById(pool, id);
+    const resource = await getResourceById(pool, id, req.auth);
     res.status(200).json({ resource });
   }));
 
